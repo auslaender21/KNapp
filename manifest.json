@@ -1,0 +1,42 @@
+{
+  "name": "KanuApp – Kajak Routenplaner",
+  "short_name": "KanuApp",
+  "description": "Kajak-Routenplanung, digitales Fahrtenbuch und GPS-Navigation für Flüsse in D/NL/BE",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#080e1a",
+  "theme_color": "#06b6d4",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "navigation", "travel"],
+  "shortcuts": [
+    {
+      "name": "Neue Fahrt",
+      "short_name": "Fahrt",
+      "description": "GPS-Tracking starten",
+      "url": "./?view=fahrt",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Fahrtenbuch",
+      "short_name": "Buch",
+      "description": "Vergangene Fahrten ansehen",
+      "url": "./?view=buch",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

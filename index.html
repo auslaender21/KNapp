@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#06b6d4">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="KanuApp">
+  <meta name="description" content="Kajak Routenplanung, digitales Fahrtenbuch und GPS-Navigation für Flüsse in Deutschland, Niederlanden und Belgien.">
+
+  <title>KanuApp – Kajak Navigation</title>
+
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="./css/app.css?v=5">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── Header ─────────────────────────────────── -->
+  <header id="app-header">
+    <div class="header-brand">
+      <img src="./icons/icon-192.png" alt="KanuApp" class="header-logo">
+      <div>
+        <h1>KanuApp</h1>
+        <div class="header-subtitle">DE · NL · BE</div>
+      </div>
+    </div>
+    <div class="gps-dot" id="header-gps-dot" title="GPS Status"></div>
+  </header>
+
+  <!-- ── Main Content ───────────────────────────── -->
+  <main id="main-content">
+
+    <!-- ══ VIEW: KARTE ══════════════════════════════ -->
+    <section id="view-karte" class="view active">
+
+      <!-- Leaflet Map -->
+      <div id="map"></div>
+
+      <!-- GPS Center Button -->
+      <button id="btn-center-gps" title="Auf meine Position zentrieren">📍</button>
+
+      <!-- Karten-Kontextmenü (Rechtsklick) -->
+      <div id="map-context-menu" class="map-context-menu" hidden>
+        <button type="button" data-map-target="start">Als Start (A) setzen</button>
+        <button type="button" data-map-target="end">Als Ziel (B) setzen</button>
+      </div>
+
+      <!-- Route Planning Panel (Bottom Sheet) -->
+      <div id="route-panel">
+
+        <!-- Panel Header / Toggle -->
+        <button id="panel-toggle">
+          <div class="panel-drag"></div>
+          <span class="panel-toggle-label">
+            🗺️ Routenplanung
+          </span>
+          <span class="panel-toggle-icon">⌃</span>
+        </button>
+
+        <!-- Panel Body -->
+        <div class="panel-body">
+
+          <!-- Fluss wählen -->
+          <div>
+            <label class="form-label" for="river-select">Fluss</label>
+            <select id="river-select">
+              <option value="">— Alle Flüsse anzeigen —</option>
+            </select>
+          </div>
+
+          <!-- Anlegestellen -->
+          <div class="route-selectors">
+            <div class="spot-selector-row">
+              <div class="spot-marker-a">A</div>
+              <select id="spot-start">
+                <option value="">— Startpunkt wählen —</option>
+              </select>
+            </div>
+            <div class="spot-selector-row">
+              <div class="spot-marker-b">B</div>
+              <select id="spot-end">
+                <option value="">— Endpunkt wählen —</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Alternative: freie Fluss-km Eingabe -->
+          <div>
+            <label class="form-label">Oder freie Fluss-km</label>
+            <div class="route-km-row">
+              <div>
+                <input id="km-start" type="number" min="0" step="0.1" placeholder="Start-km (z. B. 536,7)">
+              </div>
+              <div>
+                <input id="km-end" type="number" min="0" step="0.1" placeholder="Ziel-km (z. B. 556,9)">
+              </div>
+            </div>
+          </div>
+
+          <!-- Alternative: freie GPS-Koordinaten -->
+          <div>
+            <label class="form-label">Oder GPS Koordinaten</label>
+            <div class="route-geo-grid">
+              <div>
+                <input id="coord-start" type="text" placeholder="Start: 49.983597, 7.118452">
+              </div>
+              <div>
+                <input id="coord-end" type="text" placeholder="Ziel: 50.059061, 7.128669">
+              </div>
+            </div>
+            <div id="map-pick-status" class="map-pick-status">Rechtsklick auf Karte: Als A (Start) oder B (Ziel) setzen</div>
+          </div>
+
+          <!-- Aktive Auswahl Anzeige -->
+          <div id="active-selection" style="display:flex;gap:6px;font-size:11px;color:var(--text-muted)">
+            <span>A: <strong id="start-label" style="color:var(--success)">—</strong></span>
+            <span style="margin:0 4px">→</span>
+            <span>B: <strong id="end-label" style="color:var(--danger)">—</strong></span>
+          </div>
+
+          <!-- Paddelgeschwindigkeit -->
+          <div>
+            <label class="form-label">Tempo</label>
+            <div class="speed-group">
+              <button class="speed-btn" data-speed="slow">
+                <span class="speed-icon">🐢</span>Gemächlich
+              </button>
+              <button class="speed-btn active" data-speed="normal">
+                <span class="speed-icon">🛶</span>Normal
+              </button>
+              <button class="speed-btn" data-speed="fast">
+                <span class="speed-icon">⚡</span>Sportlich
+              </button>
+            </div>
+          </div>
+
+          <!-- Route Info (wird angezeigt nach Auswahl) -->
+          <div id="route-info"></div>
+
+        </div>
+      </div>
+
+    </section><!-- /view-karte -->
+
+
+    <!-- ══ VIEW: FAHRT ══════════════════════════════ -->
+    <section id="view-fahrt" class="view">
+
+      <!-- GPS Status -->
+      <div id="gps-status">⬤ Bereit</div>
+
+      <!-- Geplante Route (Vorschau) -->
+      <div class="trip-river-tag">
+        <span id="trip-river-name">—</span>
+      </div>
+
+      <div class="trip-route-info">
+        <div class="trip-spot">
+          <span>Start</span>
+          <strong id="trip-start-name">—</strong>
+        </div>
+        <div class="trip-spot-arrow">→</div>
+        <div class="trip-spot end-spot">
+          <span>Ziel</span>
+          <strong id="trip-end-name">—</strong>
+        </div>
+      </div>
+
+      <!-- Hauptdisplay: Distanz -->
+      <div class="trip-big-stat">
+        <div>
+          <span class="big-stat-val" id="stat-dist">0.00</span>
+          <span class="big-stat-unit">km</span>
+        </div>
+        <div class="big-stat-lbl">zurückgelegte Strecke</div>
+      </div>
+
+      <!-- Timer -->
+      <div class="trip-timer" id="stat-time">00:00:00</div>
+
+      <!-- Zusatz-Metriken -->
+      <div class="trip-metrics">
+        <div class="metric-card">
+          <div>
+            <span class="metric-val" id="stat-speed">0.0</span>
+            <span class="metric-unit"> km/h</span>
+          </div>
+          <div class="metric-lbl">Aktuell</div>
+        </div>
+        <div class="metric-card">
+          <div>
+            <span class="metric-val" id="stat-avg">0.0</span>
+            <span class="metric-unit"> km/h</span>
+          </div>
+          <div class="metric-lbl">Durchschnitt</div>
+        </div>
+      </div>
+
+      <!-- Steuerung -->
+      <div class="trip-controls">
+        <button id="btn-trip-toggle" class="btn-primary">▶ Starten</button>
+        <button id="btn-save-trip" class="btn-secondary" hidden>💾 Fahrt speichern</button>
+        <button id="btn-reset-trip" class="btn-secondary">↺ Zurücksetzen</button>
+      </div>
+
+      <!-- Hinweis -->
+      <p style="font-size:11px;color:var(--text-dim);text-align:center;padding:0 16px;line-height:1.6;">
+        🔋 GPS läuft nur im aktiven Betrieb — sperr den Bildschirm um Akku zu sparen.
+        Routen planst du im <strong style="color:var(--text-muted)">Karte</strong>-Tab.
+      </p>
+
+    </section><!-- /view-fahrt -->
+
+
+    <!-- ══ VIEW: BUCH ════════════════════════════════ -->
+    <section id="view-buch" class="view">
+
+      <!-- Sub-Tabs -->
+      <div class="buch-tabs">
+        <button class="buch-tab active" data-buch-tab="liste">
+          📋 Meine Fahrten
+        </button>
+        <button class="buch-tab" data-buch-tab="manual">
+          ✏️ Manuell erfassen
+        </button>
+      </div>
+
+      <div class="buch-panels">
+
+        <!-- Panel: Fahrtenliste -->
+        <div id="buch-liste" class="buch-panel active">
+          <div id="logbook-list">
+            <!-- Wird per JS befüllt -->
+            <div class="empty-state">
+              <div class="empty-icon">📔</div>
+              <h3>Noch keine Fahrten</h3>
+              <p>Starte eine GPS-Tour oder erfasse eine Fahrt manuell.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Manuelle Eingabe -->
+        <div id="buch-manual" class="buch-panel">
+          <div id="manual-form-container">
+            <!-- Wird per JS befüllt -->
+          </div>
+        </div>
+
+      </div>
+
+    </section><!-- /view-buch -->
+
+  </main>
+
+  <!-- ── Bottom Navigation ───────────────────────── -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-view="karte" id="nav-karte">
+      <span class="nav-icon">🗺️</span>
+      Karte
+    </button>
+    <button class="nav-btn" data-view="fahrt" id="nav-fahrt">
+      <span class="nav-icon">🧭</span>
+      Fahrt
+    </button>
+    <button class="nav-btn" data-view="buch" id="nav-buch">
+      <span class="nav-icon">📔</span>
+      Buch
+    </button>
+  </nav>
+
+</div><!-- /#app -->
+
+
+<!-- ── Trip Detail Modal ──────────────────────────── -->
+<div id="trip-detail-modal" role="dialog" aria-modal="true" aria-label="Fahrtdetails">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <span class="modal-title">Fahrtdetails</span>
+      <button id="modal-close" aria-label="Schließen">✕</button>
+    </div>
+    <div id="trip-detail-content"></div>
+  </div>
+</div>
+
+
+<!-- ── Leaflet JS ──────────────────────────────────── -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<!-- ── App JS (ES Modules) ────────────────────────── -->
+<script type="module" src="./js/app.js?v=8"></script>
+
+</body>
+</html>
