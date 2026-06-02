@@ -1,2 +1,0 @@
-# KNapp
-Kanu App
