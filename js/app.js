@@ -615,6 +615,7 @@ function renderRouteInfo(route) {
 
 function clearRouteInfo() {
   const info = document.getElementById('route-info');
+  if (!info) return;
   info.classList.remove('visible');
   info.innerHTML = '';
 }
