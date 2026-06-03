@@ -450,6 +450,9 @@ function renderRouteInfo(route) {
     if (state.currentRoute) {
       switchView('fahrt');
       prefillTripFromRoute(state.currentRoute);
+      if (!gpsTracker.tracking) {
+        startTrip();
+      }
     }
   });
 }
