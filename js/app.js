@@ -447,12 +447,10 @@ function renderRouteInfo(route) {
   `;
   // Re-attach listener
   info.querySelector('#btn-start-from-route')?.addEventListener('click', () => {
-    if (state.currentRoute) {
-      switchView('fahrt');
-      prefillTripFromRoute(state.currentRoute);
-      if (!gpsTracker.tracking) {
-        startTrip();
-      }
+    switchView('fahrt');
+    prefillTripFromRoute(route);
+    if (!gpsTracker.tracking) {
+      startTrip();
     }
   });
 }
@@ -502,6 +500,8 @@ function startTrip() {
     updateTripDisplay(stats);
     updatePosition(pos.lat, pos.lng, false);
     updateTrack(gpsTracker.track);
+    document.getElementById('gps-status').textContent = '📍 GPS aktiv';
+    document.getElementById('gps-status').className = 'gps-status active';
   };
   gpsTracker.onError = (msg) => {
     document.getElementById('gps-status').textContent = msg;
@@ -512,11 +512,12 @@ function startTrip() {
 
   document.getElementById('btn-trip-toggle').textContent = '⏹ Stoppen';
   document.getElementById('btn-trip-toggle').classList.add('active');
-  document.getElementById('gps-status').textContent = '📍 GPS aktiv';
+  document.getElementById('gps-status').textContent = '🔎 GPS-Signal wird gesucht...';
   document.getElementById('gps-status').className = 'gps-status active';
   document.getElementById('btn-save-trip').hidden = true;
 
   // Timer
+  clearInterval(state.timerInterval);
   state.timerInterval = setInterval(() => {
     const stats = gpsTracker.getStats();
     document.getElementById('stat-time').textContent =
