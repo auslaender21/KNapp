@@ -55,6 +55,9 @@
 /* ── Reset & Base ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Sicherstellen dass [hidden] immer gewinnt, auch gegen display:flex Regeln */
+[hidden] { display: none !important; }
+
 html, body {
   height: 100%;
   width: 100%;
@@ -619,9 +622,9 @@ textarea { resize: vertical; }
    ══════════════════════════════════════════════════════════════ */
 #view-fahrt {
   background: var(--bg-deep);
-  overflow-y: auto;
-  padding: 10px 12px;
-  gap: 8px;
+  overflow: hidden;          /* kein Scrollen – alles muss passen */
+  padding: clamp(6px, 1.5vh, 14px) 12px;
+  gap: clamp(5px, 1.2vh, 10px);
 }
 
 .trip-progress {
@@ -741,19 +744,28 @@ textarea { resize: vertical; }
 #gps-status.paused  { color: var(--warning); border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); }
 #gps-status.error   { color: var(--danger);  border-color: rgba(239,68,68,0.4);  background: rgba(239,68,68,0.08); }
 
-/* Big Stats Display */
-.trip-big-stat {
+/* Big Stats Row (Distanz + Timer nebeneinander) */
+.trip-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex: 1 1 auto;    /* wächst/schrumpft mit verfügbarer Höhe */
+  min-height: 0;
+}
+.trip-stat-box {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;   /* vertikal zentrieren wenn Box wächst */
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
-  padding: 10px 16px;
+  padding: clamp(8px, 1.5vh, 16px) 8px;
   position: relative;
   overflow: hidden;
+  min-height: 0;
 }
-.trip-big-stat::before {
+.trip-stat-box::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -763,11 +775,11 @@ textarea { resize: vertical; }
 
 .big-stat-val {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 44px;
+  font-size: clamp(28px, 5vh, 44px);
   font-weight: 600;
   color: var(--accent);
   line-height: 1;
-  letter-spacing: -2px;
+  letter-spacing: -1px;
 }
 .big-stat-unit {
   font-size: 16px;
@@ -785,39 +797,36 @@ textarea { resize: vertical; }
   margin-top: 6px;
 }
 
-/* Timer */
+/* Timer (in trip-stat-box) */
 .trip-timer {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 32px;
+  font-size: clamp(16px, 3.5vh, 26px);
   font-weight: 400;
   color: var(--text-primary);
-  text-align: center;
-  letter-spacing: 2px;
-  background: var(--bg-card);
-  border-radius: var(--radius);
-  padding: 8px;
-  border: 1px solid var(--border);
+  letter-spacing: 1px;
+  line-height: 1;
 }
 
 /* Small Metrics Grid */
 .trip-metrics {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .metric-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 10px;
+  padding: clamp(6px, 1.2vh, 12px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 .metric-val {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 26px;
+  font-size: clamp(18px, 3vh, 28px);
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1;
@@ -829,7 +838,8 @@ textarea { resize: vertical; }
 .trip-controls {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: clamp(6px, 1vh, 10px);
+  flex-shrink: 0;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -838,7 +848,8 @@ textarea { resize: vertical; }
 #view-buch {
   background: var(--bg-deep);
   overflow: hidden;
-  display: flex;
+  /* display: flex kommt von .view.active – NICHT hier setzen, sonst
+     überschreibt der ID-Selektor (Spez. 100) die .view { display: none } Regel (Spez. 10) */
   flex-direction: column;
 }
 
@@ -920,7 +931,7 @@ textarea { resize: vertical; }
 .trip-river { font-size: 15px; font-weight: 700; display: block; margin-bottom: 2px; }
 .trip-spots { font-size: 12px; color: var(--text-muted); }
 
-.trip-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.trip-card .trip-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .trip-stat { text-align: center; }
 .stat-val { display: block; font-size: 16px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text-primary); }
 .stat-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }

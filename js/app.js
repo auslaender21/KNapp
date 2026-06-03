@@ -259,14 +259,13 @@ function switchView(viewId) {
   if (viewId === 'fahrt') {
     syncFahrtNames();
     if (state.currentRoute && !gpsTracker.tracking) {
-      prefillTripFromRoute(state.currentRoute);
-    }
+    prefillTripFromRoute(state.currentRoute);
+  }
     updateTripProgressRoute();
     if (gpsTracker.tracking) {
-      setTripProgressState('GPS aktiv', 'active');
-    } else {
-      setTripProgressState('GPS bereit. Fahrt starten.', 'paused');
+      setTripProgressState('GPS aktiv', 'active'); // einblenden nur wenn GPS läuft
     }
+    // kein else: trip-progress bleibt hidden bis Fahrt gestartet
   }
 
   // Fahrtenbuch beim Öffnen neu laden
@@ -290,6 +289,7 @@ function setTripProgressState(text, stateClass = 'searching') {
   box.classList.remove('searching', 'active', 'paused', 'error');
   box.classList.add(stateClass);
   stateEl.textContent = text;
+  box.hidden = false; // immer einblenden wenn Status gesetzt wird
 }
 
 function syncFahrtNames() {
@@ -628,8 +628,8 @@ function initFahrtView() {
 
 function prefillTripFromRoute(route) {
   if (gpsTracker.tracking) return; // Laufende GPS-Aufzeichnung nicht überschreiben
-  document.getElementById('trip-river-name').textContent =
-    route.river?.name || '—';
+  document.getElementById('trip-river-name') && (document.getElementById('trip-river-name').textContent =
+    route.river?.name || '—');
   document.getElementById('trip-start-name').textContent =
     route.startSpot?.name || (Number.isFinite(route.startKm) ? `km ${formatRiverKm(route.startKm)}` : '—');
   document.getElementById('trip-end-name').textContent =
@@ -782,9 +782,10 @@ function resetTrip() {
   document.getElementById('gps-status').className = 'gps-status';
   setTripProgressState('GPS bereit. Fahrt starten.', 'paused');
   setGpsDebug('bereit');
-  document.getElementById('trip-river-name').textContent = '—';
+  document.getElementById('trip-river-name')?.remove?.();
   document.getElementById('trip-start-name').textContent = '—';
   document.getElementById('trip-end-name').textContent = '—';
+  document.getElementById('trip-progress').hidden = true;
   updateTripProgressRoute();
 }
 

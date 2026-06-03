@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
   <!-- App CSS -->
-  <link rel="stylesheet" href="./css/app.css?v=7">
+  <link rel="stylesheet" href="./css/app.css?v=11">
 </head>
 <body>
 
@@ -162,7 +162,7 @@
     <!-- ══ VIEW: FAHRT ══════════════════════════════ -->
     <section id="view-fahrt" class="view">
 
-      <div id="trip-progress" class="trip-progress searching" role="status" aria-live="polite">
+      <div id="trip-progress" class="trip-progress paused" role="status" aria-live="polite" hidden>
         <span class="progress-spinner" aria-hidden="true"></span>
         <div class="trip-progress-text">
           <div id="trip-progress-route">Route: — → —</div>
@@ -174,10 +174,6 @@
       <div id="gps-status">⬤ Bereit</div>
 
       <!-- Geplante Route (Vorschau) -->
-      <div class="trip-river-tag">
-        <span id="trip-river-name">—</span>
-      </div>
-
       <div class="trip-route-info">
         <div class="trip-spot">
           <span>Start</span>
@@ -190,17 +186,18 @@
         </div>
       </div>
 
-      <!-- Hauptdisplay: Distanz -->
-      <div class="trip-big-stat">
-        <div>
+      <!-- Distanz + Timer kombiniert -->
+      <div class="trip-stats-row">
+        <div class="trip-stat-box">
           <span class="big-stat-val" id="stat-dist">0.00</span>
           <span class="big-stat-unit">km</span>
+          <div class="big-stat-lbl">Strecke</div>
         </div>
-        <div class="big-stat-lbl">zurückgelegte Strecke</div>
+        <div class="trip-stat-box">
+          <span class="trip-timer" id="stat-time">00:00:00</span>
+          <div class="big-stat-lbl">Zeit</div>
+        </div>
       </div>
-
-      <!-- Timer -->
-      <div class="trip-timer" id="stat-time">00:00:00</div>
 
       <!-- Zusatz-Metriken -->
       <div class="trip-metrics">
@@ -226,12 +223,6 @@
         <button id="btn-save-trip" class="btn-secondary" hidden>💾 Fahrt speichern</button>
         <button id="btn-reset-trip" class="btn-secondary">↺ Zurücksetzen</button>
       </div>
-
-      <!-- Hinweis -->
-      <p style="font-size:11px;color:var(--text-dim);text-align:center;padding:0 16px;line-height:1.6;">
-        🔋 GPS läuft nur im aktiven Betrieb — sperr den Bildschirm um Akku zu sparen.
-        Routen planst du im <strong style="color:var(--text-muted)">Karte</strong>-Tab.
-      </p>
 
     </section><!-- /view-fahrt -->
 
@@ -318,7 +309,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
 <!-- ── App JS (ES Modules) ────────────────────────── -->
-<script type="module" src="./js/app.js?v=31"></script>
+<script type="module" src="./js/app.js?v=33"></script>
 
 </body>
 </html>
