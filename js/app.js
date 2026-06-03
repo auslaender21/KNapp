@@ -5,7 +5,7 @@
 
 import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
          updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=6';
-import { gpsTracker, GPSTracker } from './gps.js?v=7';
+import { gpsTracker, GPSTracker } from './gps.js?v=8';
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
 import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=7';
 import { RIVERS, getRiver } from './data/rivers.js?v=4';

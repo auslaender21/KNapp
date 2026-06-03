@@ -80,7 +80,7 @@ class GPSTracker {
     this._beginWatch({
       enableHighAccuracy: true,
       timeout: 30000,
-      maximumAge: 10000
+      maximumAge: 2000
     });
   }
 
