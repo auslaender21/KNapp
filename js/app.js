@@ -60,7 +60,7 @@ function parseCoordInput(id) {
 
 function setGpsDebug(text) {
   const el = document.getElementById('gps-debug');
-  if (el) el.textContent = text;
+  if (el) el.textContent = `DEBUG: ${text}`;
 }
 
 function clearCoordInputs() {
@@ -610,7 +610,7 @@ function resetTrip() {
   document.getElementById('btn-save-trip').hidden = true;
   document.getElementById('gps-status').textContent = '⬤ Bereit';
   document.getElementById('gps-status').className = 'gps-status';
-  setGpsDebug('Debug: bereit');
+  setGpsDebug('bereit');
   document.getElementById('trip-river-name').textContent = '—';
   document.getElementById('trip-start-name').textContent = '—';
   document.getElementById('trip-end-name').textContent = '—';
