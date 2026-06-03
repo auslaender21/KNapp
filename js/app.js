@@ -21,7 +21,8 @@ const state = {
   currentRoute: null,
   contextMenuLatLng: null,
   activeTrip: null,    // Laufende GPS-Fahrt
-  timerInterval: null
+  timerInterval: null,
+  gpsWaitTimeout: null
 };
 
 function formatRiverKm(km) {
@@ -55,6 +56,11 @@ function parseCoordInput(id) {
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
 
   return { lat, lng };
+}
+
+function setGpsDebug(text) {
+  const el = document.getElementById('gps-debug');
+  if (el) el.textContent = text;
 }
 
 function clearCoordInputs() {
@@ -451,6 +457,10 @@ function renderRouteInfo(route) {
     prefillTripFromRoute(route);
     if (!gpsTracker.tracking) {
       startTrip();
+      // Fallback: some mobile browsers delay permission/fix on first try.
+      setTimeout(() => {
+        if (!gpsTracker.tracking) startTrip();
+      }, 300);
     }
   });
 }
@@ -496,16 +506,26 @@ function startTrip() {
   const isNewTrip = !state.activeTrip;
   if (isNewTrip) state.activeTrip = {};
 
+  clearTimeout(state.gpsWaitTimeout);
+
   gpsTracker.onUpdate = (stats, pos) => {
+    clearTimeout(state.gpsWaitTimeout);
     updateTripDisplay(stats);
     updatePosition(pos.lat, pos.lng, false);
     updateTrack(gpsTracker.track);
     document.getElementById('gps-status').textContent = '📍 GPS aktiv';
     document.getElementById('gps-status').className = 'gps-status active';
+    const fixTs = stats.currentPos?.ts ? new Date(stats.currentPos.ts).toLocaleTimeString() : '—';
+    const acc = Number.isFinite(stats.currentPos?.accuracy) ? `${Math.round(stats.currentPos.accuracy)}m` : '—';
+    const lat = Number.isFinite(stats.currentPos?.lat) ? stats.currentPos.lat.toFixed(5) : '—';
+    const lng = Number.isFinite(stats.currentPos?.lng) ? stats.currentPos.lng.toFixed(5) : '—';
+    setGpsDebug(`Fix ${fixTs} | acc ${acc} | ${lat}, ${lng}`);
   };
-  gpsTracker.onError = (msg) => {
+  gpsTracker.onError = (msg, err) => {
+    clearTimeout(state.gpsWaitTimeout);
     document.getElementById('gps-status').textContent = msg;
     document.getElementById('gps-status').className = 'gps-status error';
+    setGpsDebug(`Fehler code=${err?.code ?? '—'} | ${msg}`);
   };
 
   gpsTracker.start(isNewTrip);
@@ -514,7 +534,18 @@ function startTrip() {
   document.getElementById('btn-trip-toggle').classList.add('active');
   document.getElementById('gps-status').textContent = '🔎 GPS-Signal wird gesucht...';
   document.getElementById('gps-status').className = 'gps-status active';
+  setGpsDebug('Suche GPS-Fix... Standortfreigabe und Signal prüfen');
   document.getElementById('btn-save-trip').hidden = true;
+
+  state.gpsWaitTimeout = setTimeout(() => {
+    const hasFix = !!gpsTracker.getStats().currentPos;
+    if (gpsTracker.tracking && !hasFix) {
+      document.getElementById('gps-status').textContent = '⚠️ Noch kein GPS-Fix. Standortfreigabe/Signal prüfen.';
+      document.getElementById('gps-status').className = 'gps-status paused';
+      const lastErr = gpsTracker.getStats().lastErrorCode;
+      setGpsDebug(`Noch kein Fix nach 12s | letzter Fehlercode: ${lastErr ?? '—'}`);
+    }
+  }, 12000);
 
   // Timer
   clearInterval(state.timerInterval);
@@ -527,12 +558,14 @@ function startTrip() {
 
 function stopTrip() {
   gpsTracker.stop();
+  clearTimeout(state.gpsWaitTimeout);
   clearInterval(state.timerInterval);
 
   document.getElementById('btn-trip-toggle').textContent = '▶ Weiterfahren';
   document.getElementById('btn-trip-toggle').classList.remove('active');
   document.getElementById('gps-status').textContent = '⏸ Pausiert';
   document.getElementById('gps-status').className = 'gps-status paused';
+  setGpsDebug('Pausiert');
   document.getElementById('btn-save-trip').hidden = false;
 }
 
@@ -565,6 +598,7 @@ async function saveCurrentTrip() {
 function resetTrip() {
   stopTrip();
   gpsTracker.reset();
+  clearTimeout(state.gpsWaitTimeout);
   state.activeTrip = null;
   clearTrack();
 
@@ -576,6 +610,7 @@ function resetTrip() {
   document.getElementById('btn-save-trip').hidden = true;
   document.getElementById('gps-status').textContent = '⬤ Bereit';
   document.getElementById('gps-status').className = 'gps-status';
+  setGpsDebug('Debug: bereit');
   document.getElementById('trip-river-name').textContent = '—';
   document.getElementById('trip-start-name').textContent = '—';
   document.getElementById('trip-end-name').textContent = '—';

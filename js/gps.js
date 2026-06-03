@@ -29,6 +29,8 @@ class GPSTracker {
     this.currentSpeed = 0;     // km/h
     this.lastTrackPoint = 0;   // timestamp letzter gespeicherter Punkt
     this.currentPos = null;    // aktuelle Position (live)
+    this.lastErrorCode = null;
+    this.lastErrorMessage = null;
     this.pausedAt = null;      // timestamp der letzten Pause
     this.totalPausedMs = 0;    // kumulierte Pausenzeit
 
@@ -63,6 +65,8 @@ class GPSTracker {
     }
 
     this.tracking = true;
+    this.lastErrorCode = null;
+    this.lastErrorMessage = null;
 
     this.watchId = navigator.geolocation.watchPosition(
       pos => this._onPosition(pos),
@@ -97,6 +101,8 @@ class GPSTracker {
     this.currentSpeed = 0;
     this.lastTrackPoint = 0;
     this.currentPos = null;
+    this.lastErrorCode = null;
+    this.lastErrorMessage = null;
     this.pausedAt = null;
     this.totalPausedMs = 0;
   }
@@ -117,7 +123,12 @@ class GPSTracker {
     const lng = pos.coords.longitude;
     const speed = pos.coords.speed ? (pos.coords.speed * 3.6) : null; // m/s → km/h
     const ts = pos.timestamp;
-    this.currentPos = { lat, lng };
+    this.currentPos = {
+      lat,
+      lng,
+      ts,
+      accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null
+    };
 
     // Distanz berechnen
     if (this.lastPos) {
@@ -152,7 +163,9 @@ class GPSTracker {
       2: 'GPS-Position nicht verfügbar.',
       3: 'GPS-Timeout. Versuche es erneut.'
     };
-    this.onError?.(messages[err.code] || 'GPS-Fehler.');
+    this.lastErrorCode = err.code || null;
+    this.lastErrorMessage = messages[err.code] || 'GPS-Fehler.';
+    this.onError?.(this.lastErrorMessage, err);
   }
 
   /** Aktuelle Fahrt-Statistiken */
@@ -170,7 +183,9 @@ class GPSTracker {
       avgSpeed,                             // km/h
       trackPoints: this.track.length,
       isTracking: this.tracking,
-      currentPos: this.currentPos
+      currentPos: this.currentPos,
+      lastErrorCode: this.lastErrorCode,
+      lastErrorMessage: this.lastErrorMessage
     };
   }
 
