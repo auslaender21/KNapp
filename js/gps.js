@@ -31,6 +31,7 @@ class GPSTracker {
     this.currentPos = null;    // aktuelle Position (live)
     this.lastErrorCode = null;
     this.lastErrorMessage = null;
+    this.usedLowAccuracyFallback = false;
     this.pausedAt = null;      // timestamp der letzten Pause
     this.totalPausedMs = 0;    // kumulierte Pausenzeit
 
@@ -57,6 +58,7 @@ class GPSTracker {
       this.lastTrackPoint = 0;
       this.totalPausedMs = 0;
       this.pausedAt = null;
+      this.usedLowAccuracyFallback = false;
     } else if (this.pausedAt) {
       this.totalPausedMs += Date.now() - this.pausedAt;
       this.pausedAt = null;
@@ -68,14 +70,22 @@ class GPSTracker {
     this.lastErrorCode = null;
     this.lastErrorMessage = null;
 
+    this._beginWatch({
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 10000
+    });
+  }
+
+  _beginWatch(options) {
+    if (this.watchId !== null) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
     this.watchId = navigator.geolocation.watchPosition(
       pos => this._onPosition(pos),
       err => this._onError(err),
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 5000
-      }
+      options
     );
   }
 
@@ -103,6 +113,7 @@ class GPSTracker {
     this.currentPos = null;
     this.lastErrorCode = null;
     this.lastErrorMessage = null;
+    this.usedLowAccuracyFallback = false;
     this.pausedAt = null;
     this.totalPausedMs = 0;
   }
@@ -165,6 +176,23 @@ class GPSTracker {
     };
     this.lastErrorCode = err.code || null;
     this.lastErrorMessage = messages[err.code] || 'GPS-Fehler.';
+
+    // Weak GPS signal: retry with less strict settings once before hard failing.
+    if (
+      this.tracking &&
+      (err.code === 2 || err.code === 3) &&
+      !this.usedLowAccuracyFallback
+    ) {
+      this.usedLowAccuracyFallback = true;
+      this._beginWatch({
+        enableHighAccuracy: false,
+        timeout: 30000,
+        maximumAge: 60000
+      });
+      this.onError?.('GPS schwach, versuche Fallback-Modus...', err);
+      return;
+    }
+
     this.onError?.(this.lastErrorMessage, err);
   }
 

@@ -266,7 +266,10 @@ export async function centerOnUser() {
       pos => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        if (map) map.setView([lat, lng], 13);
+        if (map) {
+          const targetZoom = Math.max(map.getZoom(), 16);
+          map.setView([lat, lng], targetZoom);
+        }
         resolve({ lat, lng });
       },
       err => reject(err),

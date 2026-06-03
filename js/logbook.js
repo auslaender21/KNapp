@@ -8,6 +8,46 @@ import { getRiver } from './data/rivers.js?v=3';
 import { formatDuration } from './route.js';
 // gps.js – GPSTracker not needed here
 
+function parseLatLng(raw) {
+  if (!raw) return null;
+  let parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+  if (parts.length !== 2) {
+    parts = raw.split(/[;\s]+/).map(p => p.trim()).filter(Boolean);
+  }
+  if (parts.length !== 2) return null;
+
+  const lat = Number.parseFloat(parts[0].replace(',', '.'));
+  const lng = Number.parseFloat(parts[1].replace(',', '.'));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
+
+function normalizeLatLng(raw) {
+  const coord = parseLatLng(raw);
+  return coord ? `${coord.lat.toFixed(6)}, ${coord.lng.toFixed(6)}` : '';
+}
+
+function buildTrackFromCoordinates(startRaw, endRaw) {
+  const start = parseLatLng(startRaw);
+  const end = parseLatLng(endRaw);
+  if (!start || !end) return null;
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [start.lng, start.lat],
+        [end.lng, end.lat]
+      ]
+    },
+    properties: {
+      source: 'manual-coordinates'
+    }
+  };
+}
+
 /** Leeres Fahrten-Objekt */
 function createTrip(data = {}) {
   return {
@@ -16,6 +56,8 @@ function createTrip(data = {}) {
     river: '',
     startSpotName: '',
     endSpotName: '',
+    startCoords: '',
+    endCoords: '',
     distanceKm: 0,
     durationMin: 0,
     avgSpeedKmh: 0,
@@ -98,6 +140,10 @@ function createTripCard(trip) {
         <span class="trip-spots">
           ${trip.startSpotName} → ${trip.endSpotName || '?'}
         </span>
+      ` : (trip.startCoords ? `
+        <span class="trip-spots">
+          ${trip.startCoords} → ${trip.endCoords || '?'}
+        </span>
       ` : ''}
     </div>
     <div class="trip-stats-row">
@@ -152,6 +198,11 @@ function showTripDetail(trip) {
           <span>${trip.endSpotName || '—'}</span>
         </div>
       </div>
+    ` : ''}
+
+    ${(trip.startCoords || trip.endCoords) ? `
+      <div class="detail-row"><span class="detail-lbl">🧭 Koordinaten A</span><span>${trip.startCoords || '—'}</span></div>
+      <div class="detail-row"><span class="detail-lbl">🧭 Koordinaten B</span><span>${trip.endCoords || '—'}</span></div>
     ` : ''}
 
     <div class="detail-stats-grid">
@@ -341,6 +392,16 @@ export function renderTripForm(container, prefill = {}, onSave, onCancel) {
         </div>
         <div class="form-row">
           <div class="form-group">
+            <label for="tf-start-coord">Start GPS (Lat,Lng)</label>
+            <input type="text" id="tf-start-coord" placeholder="49.749000, 6.637100" value="${prefill.startCoords || ''}">
+          </div>
+          <div class="form-group">
+            <label for="tf-end-coord">Ziel GPS (Lat,Lng)</label>
+            <input type="text" id="tf-end-coord" placeholder="50.146100, 7.167100" value="${prefill.endCoords || ''}">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label for="tf-dist">Distanz (km)</label>
             <input type="number" id="tf-dist" step="0.1" min="0" placeholder="0.0" value="${prefill.distanceKm || ''}">
           </div>
@@ -397,18 +458,39 @@ export function renderTripForm(container, prefill = {}, onSave, onCancel) {
 
       const distVal = parseFloat(document.getElementById('tf-dist').value) || 0;
       const durVal = parseInt(document.getElementById('tf-dur').value) || 0;
+      const startCoordsRaw = document.getElementById('tf-start-coord').value.trim();
+      const endCoordsRaw = document.getElementById('tf-end-coord').value.trim();
+      const startCoords = normalizeLatLng(startCoordsRaw);
+      const endCoords = normalizeLatLng(endCoordsRaw);
+
+      if (startCoordsRaw && !startCoords) {
+        alert('Start GPS ist ungültig. Bitte Format "Breitengrad, Längengrad" verwenden.');
+        return;
+      }
+      if (endCoordsRaw && !endCoords) {
+        alert('Ziel GPS ist ungültig. Bitte Format "Breitengrad, Längengrad" verwenden.');
+        return;
+      }
+
+      const manualTrack = (startCoords && endCoords)
+        ? buildTrackFromCoordinates(startCoords, endCoords)
+        : (prefill.track || null);
+
       const tripData = {
         ...prefill,
         date: document.getElementById('tf-date').value,
         river: document.getElementById('tf-river').value,
         startSpotName: document.getElementById('tf-start').value,
         endSpotName: document.getElementById('tf-end').value,
+        startCoords,
+        endCoords,
         distanceKm: distVal,
         durationMin: durVal,
         avgSpeedKmh: (durVal > 0 && distVal > 0) ? (distVal / (durVal / 60)) : 0,
         weather: document.getElementById('tf-weather').value,
         waterLevel: document.getElementById('tf-water').value,
         notes: document.getElementById('tf-notes').value,
+        track: manualTrack,
         isGpsTracked: prefill.isGpsTracked ?? false
       };
       const saved = await saveTrip(tripData);

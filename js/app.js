@@ -4,10 +4,10 @@
  */
 
 import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
-         updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=4';
-import { gpsTracker, GPSTracker } from './gps.js?v=2';
+         updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=5';
+import { gpsTracker, GPSTracker } from './gps.js?v=3';
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
-import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=3';
+import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=4';
 import { RIVERS, getRiver } from './data/rivers.js?v=4';
 import { getSpotsByRiver, SPOT_TYPE_LABELS } from './data/spots.js?v=4';
 
@@ -59,8 +59,12 @@ function parseCoordInput(id) {
 }
 
 function setGpsDebug(text) {
-  const el = document.getElementById('gps-debug');
-  if (el) el.textContent = `DEBUG: ${text}`;
+  const label = `DEBUG: ${text}`;
+  const headerEl = document.getElementById('header-gps-debug');
+  if (headerEl) headerEl.textContent = label;
+
+  const legacyEl = document.getElementById('gps-debug');
+  if (legacyEl) legacyEl.textContent = label;
 }
 
 function clearCoordInputs() {
@@ -131,6 +135,7 @@ function applyMapPointToField(target) {
 
 // ── Init ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  initDebugToggle();
   initNav();
   initKarteView();
   initFahrtView();
@@ -151,6 +156,28 @@ function initNav() {
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
+}
+
+function initDebugToggle() {
+  const appRoot = document.getElementById('app');
+  const btn = document.getElementById('btn-toggle-debug');
+  if (!appRoot || !btn) return;
+
+  let debugVisible = false;
+
+  const applyState = () => {
+    appRoot.classList.toggle('debug-visible', debugVisible);
+    btn.setAttribute('aria-pressed', debugVisible ? 'true' : 'false');
+    btn.textContent = debugVisible ? 'I' : 'D';
+    btn.title = debugVisible ? 'Debug ausblenden' : 'Debug einblenden';
+  };
+
+  btn.addEventListener('click', () => {
+    debugVisible = !debugVisible;
+    applyState();
+  });
+
+  applyState();
 }
 
 function switchView(viewId) {
@@ -523,8 +550,11 @@ function startTrip() {
   };
   gpsTracker.onError = (msg, err) => {
     clearTimeout(state.gpsWaitTimeout);
-    document.getElementById('gps-status').textContent = msg;
-    document.getElementById('gps-status').className = 'gps-status error';
+    const isWeakSignal = err?.code === 2 || err?.code === 3;
+    document.getElementById('gps-status').textContent = isWeakSignal
+      ? '⚠️ GPS schwach, Suche läuft weiter...'
+      : msg;
+    document.getElementById('gps-status').className = isWeakSignal ? 'gps-status paused' : 'gps-status error';
     setGpsDebug(`Fehler code=${err?.code ?? '—'} | ${msg}`);
   };
 
