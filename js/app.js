@@ -765,12 +765,30 @@ async function saveCurrentTrip() {
   switchView('buch');
 }
 
+function resetRoute() {
+  state.currentRoute = null;
+  state.startSpot = null;
+  state.endSpot = null;
+  clearCoordInputs();
+  const startSel = document.getElementById('spot-start');
+  const endSel   = document.getElementById('spot-end');
+  if (startSel) startSel.value = '';
+  if (endSel)   endSel.value   = '';
+  const kmStart = document.getElementById('km-start');
+  const kmEnd   = document.getElementById('km-end');
+  if (kmStart) kmStart.value = '';
+  if (kmEnd)   kmEnd.value   = '';
+  clearRoute();
+  clearRouteInfo();
+}
+
 function resetTrip() {
   stopTrip();
   gpsTracker.reset();
   clearTimeout(state.gpsWaitTimeout);
   state.activeTrip = null;
   clearTrack();
+  resetRoute();
 
   document.getElementById('stat-dist').textContent = '0.00';
   document.getElementById('stat-speed').textContent = '0.0';
