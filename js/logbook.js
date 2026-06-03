@@ -144,7 +144,7 @@ function createTripCard(trip) {
         <span class="trip-spots">
           ${trip.startCoords} → ${trip.endCoords || '?'}
         </span>
-      ` : ''}
+      ` : '')}
     </div>
     <div class="trip-stats-row">
       <div class="trip-stat">

@@ -32,6 +32,8 @@ class GPSTracker {
     this.lastErrorCode = null;
     this.lastErrorMessage = null;
     this.usedLowAccuracyFallback = false;
+    this.weakErrorCount = 0;
+    this.lastWeakRetryAt = 0;
     this.pausedAt = null;      // timestamp der letzten Pause
     this.totalPausedMs = 0;    // kumulierte Pausenzeit
 
@@ -59,6 +61,8 @@ class GPSTracker {
       this.totalPausedMs = 0;
       this.pausedAt = null;
       this.usedLowAccuracyFallback = false;
+      this.weakErrorCount = 0;
+      this.lastWeakRetryAt = 0;
     } else if (this.pausedAt) {
       this.totalPausedMs += Date.now() - this.pausedAt;
       this.pausedAt = null;
@@ -72,7 +76,7 @@ class GPSTracker {
 
     this._beginWatch({
       enableHighAccuracy: true,
-      timeout: 20000,
+      timeout: 30000,
       maximumAge: 10000
     });
   }
@@ -114,6 +118,8 @@ class GPSTracker {
     this.lastErrorCode = null;
     this.lastErrorMessage = null;
     this.usedLowAccuracyFallback = false;
+    this.weakErrorCount = 0;
+    this.lastWeakRetryAt = 0;
     this.pausedAt = null;
     this.totalPausedMs = 0;
   }
@@ -124,7 +130,7 @@ class GPSTracker {
       navigator.geolocation.getCurrentPosition(
         pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
         err => reject(err),
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
       );
     });
   }
@@ -140,6 +146,7 @@ class GPSTracker {
       ts,
       accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null
     };
+    this.weakErrorCount = 0;
 
     // Distanz berechnen
     if (this.lastPos) {
@@ -172,24 +179,27 @@ class GPSTracker {
     const messages = {
       1: 'GPS-Zugriff verweigert. Bitte Einstellungen prüfen.',
       2: 'GPS-Position nicht verfügbar.',
-      3: 'GPS-Timeout. Versuche es erneut.'
+      3: 'GPS-Timeout. Versuche es erneut.',
+      20: 'GPS-Timeout. Versuche es erneut.'
     };
     this.lastErrorCode = err.code || null;
     this.lastErrorMessage = messages[err.code] || 'GPS-Fehler.';
 
-    // Weak GPS signal: retry with less strict settings once before hard failing.
-    if (
-      this.tracking &&
-      (err.code === 2 || err.code === 3) &&
-      !this.usedLowAccuracyFallback
-    ) {
-      this.usedLowAccuracyFallback = true;
-      this._beginWatch({
-        enableHighAccuracy: false,
-        timeout: 30000,
-        maximumAge: 60000
-      });
-      this.onError?.('GPS schwach, versuche Fallback-Modus...', err);
+    // Weak GPS signal: keep searching and re-arm watch with tolerant settings.
+    const isWeakSignal = err.code === 2 || err.code === 3 || err.code === 20;
+    if (this.tracking && isWeakSignal) {
+      this.weakErrorCount += 1;
+      const now = Date.now();
+      if (now - this.lastWeakRetryAt > 3000) {
+        this.lastWeakRetryAt = now;
+        this.usedLowAccuracyFallback = true;
+        this._beginWatch({
+          enableHighAccuracy: false,
+          timeout: 45000,
+          maximumAge: 120000
+        });
+      }
+      this.onError?.(`GPS schwach, suche weiter... (${this.weakErrorCount})`, err);
       return;
     }
 

@@ -4,10 +4,10 @@
  */
 
 import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
-         updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=5';
-import { gpsTracker, GPSTracker } from './gps.js?v=3';
+         updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=6';
+import { gpsTracker, GPSTracker } from './gps.js?v=5';
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
-import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=4';
+import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=5';
 import { RIVERS, getRiver } from './data/rivers.js?v=4';
 import { getSpotsByRiver, SPOT_TYPE_LABELS } from './data/spots.js?v=4';
 
@@ -24,6 +24,56 @@ const state = {
   timerInterval: null,
   gpsWaitTimeout: null
 };
+
+function ensureStylesheet(href) {
+  const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+  const exists = links.some(link => link.href === href);
+  if (exists) return;
+
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  link.crossOrigin = '';
+  document.head.appendChild(link);
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = Array.from(document.querySelectorAll('script')).find(s => s.src === src);
+    if (existing) {
+      if (window.L) resolve();
+      else existing.addEventListener('load', resolve, { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = src;
+    script.crossOrigin = '';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Script konnte nicht geladen werden: ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureLeafletReady() {
+  if (window.L) return;
+
+  const fallbackCss = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+  const fallbackJs = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+
+  ensureStylesheet(fallbackCss);
+  await loadScript(fallbackJs);
+
+  if (!window.L) {
+    throw new Error('Leaflet nicht verfügbar');
+  }
+}
+
+function showMapInitError(message) {
+  const mapEl = document.getElementById('map');
+  if (!mapEl) return;
+  mapEl.innerHTML = `<div style="padding:16px;color:#b91c1c;font-weight:600;">${message}</div>`;
+}
 
 function formatRiverKm(km) {
   return Number.isFinite(km) ? km.toFixed(1).replace('.', ',') : '—';
@@ -134,10 +184,18 @@ function applyMapPointToField(target) {
 }
 
 // ── Init ─────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initDebugToggle();
   initNav();
-  initKarteView();
+
+  try {
+    await ensureLeafletReady();
+    initKarteView();
+  } catch (error) {
+    console.error(error);
+    showMapInitError('Karte konnte nicht geladen werden. Bitte Internetverbindung prüfen und Seite neu laden.');
+  }
+
   initFahrtView();
   initBuchView();
   initModal();
@@ -198,11 +256,39 @@ function switchView(viewId) {
     }, 50);
   }
 
+  if (viewId === 'fahrt') {
+    if (state.currentRoute && !state.activeTrip) {
+      prefillTripFromRoute(state.currentRoute);
+    }
+    updateTripProgressRoute();
+    if (gpsTracker.tracking) {
+      setTripProgressState('GPS aktiv', 'active');
+    } else {
+      setTripProgressState('GPS bereit. Fahrt starten.', 'paused');
+    }
+  }
+
   // Fahrtenbuch beim Öffnen neu laden
   if (viewId === 'buch') {
     const logContainer = document.getElementById('logbook-list');
     if (logContainer) renderLogbook(logContainer);
   }
+}
+
+function updateTripProgressRoute() {
+  const start = document.getElementById('trip-start-name')?.textContent?.trim() || '—';
+  const end = document.getElementById('trip-end-name')?.textContent?.trim() || '—';
+  const el = document.getElementById('trip-progress-route');
+  if (el) el.textContent = `Route: ${start} → ${end}`;
+}
+
+function setTripProgressState(text, stateClass = 'searching') {
+  const box = document.getElementById('trip-progress');
+  const stateEl = document.getElementById('trip-progress-state');
+  if (!box || !stateEl) return;
+  box.classList.remove('searching', 'active', 'paused', 'error');
+  box.classList.add(stateClass);
+  stateEl.textContent = text;
 }
 
 // ── Karte & Routenplanung ────────────────────────
@@ -513,6 +599,7 @@ function prefillTripFromRoute(route) {
     route.startSpot?.name || (Number.isFinite(route.startKm) ? `km ${formatRiverKm(route.startKm)}` : '—');
   document.getElementById('trip-end-name').textContent =
     route.endSpot?.name || (Number.isFinite(route.endKm) ? `km ${formatRiverKm(route.endKm)}` : '—');
+  updateTripProgressRoute();
   state.activeTrip = {
     river: route.startSpot?.river || route.river?.id,
     startSpotName: route.startSpot?.name || (Number.isFinite(route.startKm) ? `km ${formatRiverKm(route.startKm)}` : ''),
@@ -542,6 +629,7 @@ function startTrip() {
     updateTrack(gpsTracker.track);
     document.getElementById('gps-status').textContent = '📍 GPS aktiv';
     document.getElementById('gps-status').className = 'gps-status active';
+    setTripProgressState('GPS aktiv, Position wird laufend aktualisiert.', 'active');
     const fixTs = stats.currentPos?.ts ? new Date(stats.currentPos.ts).toLocaleTimeString() : '—';
     const acc = Number.isFinite(stats.currentPos?.accuracy) ? `${Math.round(stats.currentPos.accuracy)}m` : '—';
     const lat = Number.isFinite(stats.currentPos?.lat) ? stats.currentPos.lat.toFixed(5) : '—';
@@ -550,11 +638,15 @@ function startTrip() {
   };
   gpsTracker.onError = (msg, err) => {
     clearTimeout(state.gpsWaitTimeout);
-    const isWeakSignal = err?.code === 2 || err?.code === 3;
+    const isWeakSignal = err?.code === 2 || err?.code === 3 || err?.code === 20;
     document.getElementById('gps-status').textContent = isWeakSignal
       ? '⚠️ GPS schwach, Suche läuft weiter...'
       : msg;
     document.getElementById('gps-status').className = isWeakSignal ? 'gps-status paused' : 'gps-status error';
+    setTripProgressState(
+      isWeakSignal ? 'GPS schwach, suche weiter...' : msg,
+      isWeakSignal ? 'searching' : 'error'
+    );
     setGpsDebug(`Fehler code=${err?.code ?? '—'} | ${msg}`);
   };
 
@@ -564,6 +656,7 @@ function startTrip() {
   document.getElementById('btn-trip-toggle').classList.add('active');
   document.getElementById('gps-status').textContent = '🔎 GPS-Signal wird gesucht...';
   document.getElementById('gps-status').className = 'gps-status active';
+  setTripProgressState('GPS wird gesucht... bitte kurz warten.', 'searching');
   setGpsDebug('Suche GPS-Fix... Standortfreigabe und Signal prüfen');
   document.getElementById('btn-save-trip').hidden = true;
 
@@ -572,10 +665,11 @@ function startTrip() {
     if (gpsTracker.tracking && !hasFix) {
       document.getElementById('gps-status').textContent = '⚠️ Noch kein GPS-Fix. Standortfreigabe/Signal prüfen.';
       document.getElementById('gps-status').className = 'gps-status paused';
+      setTripProgressState('Noch kein GPS-Fix. Suche läuft weiter...', 'searching');
       const lastErr = gpsTracker.getStats().lastErrorCode;
-      setGpsDebug(`Noch kein Fix nach 12s | letzter Fehlercode: ${lastErr ?? '—'}`);
+      setGpsDebug(`Noch kein Fix nach 20s | letzter Fehlercode: ${lastErr ?? '—'}`);
     }
-  }, 12000);
+  }, 20000);
 
   // Timer
   clearInterval(state.timerInterval);
@@ -595,6 +689,7 @@ function stopTrip() {
   document.getElementById('btn-trip-toggle').classList.remove('active');
   document.getElementById('gps-status').textContent = '⏸ Pausiert';
   document.getElementById('gps-status').className = 'gps-status paused';
+  setTripProgressState('Fahrt pausiert. Mit Weiterfahren erneut GPS suchen.', 'paused');
   setGpsDebug('Pausiert');
   document.getElementById('btn-save-trip').hidden = false;
 }
@@ -640,10 +735,12 @@ function resetTrip() {
   document.getElementById('btn-save-trip').hidden = true;
   document.getElementById('gps-status').textContent = '⬤ Bereit';
   document.getElementById('gps-status').className = 'gps-status';
+  setTripProgressState('GPS bereit. Fahrt starten.', 'paused');
   setGpsDebug('bereit');
   document.getElementById('trip-river-name').textContent = '—';
   document.getElementById('trip-start-name').textContent = '—';
   document.getElementById('trip-end-name').textContent = '—';
+  updateTripProgressRoute();
 }
 
 // ── Fahrtenbuch ──────────────────────────────────

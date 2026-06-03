@@ -162,6 +162,14 @@
     <!-- ══ VIEW: FAHRT ══════════════════════════════ -->
     <section id="view-fahrt" class="view">
 
+      <div id="trip-progress" class="trip-progress searching" role="status" aria-live="polite">
+        <span class="progress-spinner" aria-hidden="true"></span>
+        <div class="trip-progress-text">
+          <div id="trip-progress-route">Route: — → —</div>
+          <div id="trip-progress-state">GPS wird gesucht...</div>
+        </div>
+      </div>
+
       <!-- GPS Status -->
       <div id="gps-status">⬤ Bereit</div>
 
@@ -303,7 +311,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
 <!-- ── App JS (ES Modules) ────────────────────────── -->
-<script type="module" src="./js/app.js?v=18"></script>
+<script type="module" src="./js/app.js?v=23"></script>
 
 </body>
 </html>

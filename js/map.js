@@ -273,7 +273,7 @@ export async function centerOnUser() {
         resolve({ lat, lng });
       },
       err => reject(err),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
     );
   });
 }
