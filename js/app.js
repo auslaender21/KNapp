@@ -645,14 +645,18 @@ function prefillTripFromRoute(route) {
   };
 }
 
+function hasValidRoute() {
+  if (state.currentRoute) return true;
+  if (state.startSpot && state.endSpot) return true;
+  if (parseCoordInput('coord-start') && parseCoordInput('coord-end')) return true;
+  return false;
+}
+
 function toggleTrip() {
   if (gpsTracker.tracking) {
     stopTrip();
   } else {
-    // Start/Ziel prüfen
-    const startName = document.getElementById('trip-start-name')?.textContent?.trim();
-    const endName   = document.getElementById('trip-end-name')?.textContent?.trim();
-    if (!startName || startName === '—' || !endName || endName === '—') {
+    if (!hasValidRoute()) {
       alert('Bitte zuerst Start und Ziel auf der Karte festlegen.');
       return;
     }
@@ -789,7 +793,8 @@ function resetRoute() {
   if (kmEnd)   kmEnd.value   = '';
   const riverSel = document.getElementById('river-select');
   if (riverSel) riverSel.value = '';
-  setMapPickHint('');
+  state.contextMenuLatLng = null;
+  setMapPickHint('Rechtsklick / Lang drücken: Als Start (A) oder Ziel (B) setzen');
   clearRoute();
   clearRouteInfo();
 }
