@@ -5,7 +5,7 @@
 
 import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
          updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=6';
-import { gpsTracker, GPSTracker } from './gps.js?v=8'; // app v35
+import { gpsTracker, GPSTracker } from './gps.js?v=8'; // app v36
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
 import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=7';
 import { RIVERS, getRiver } from './data/rivers.js?v=4';
@@ -649,6 +649,13 @@ function toggleTrip() {
   if (gpsTracker.tracking) {
     stopTrip();
   } else {
+    // Start/Ziel prüfen
+    const startName = document.getElementById('trip-start-name')?.textContent?.trim();
+    const endName   = document.getElementById('trip-end-name')?.textContent?.trim();
+    if (!startName || startName === '—' || !endName || endName === '—') {
+      alert('Bitte zuerst Start und Ziel auf der Karte festlegen.');
+      return;
+    }
     startTrip();
   }
 }
@@ -782,6 +789,7 @@ function resetRoute() {
   if (kmEnd)   kmEnd.value   = '';
   const riverSel = document.getElementById('river-select');
   if (riverSel) riverSel.value = '';
+  setMapPickHint('');
   clearRoute();
   clearRouteInfo();
 }
