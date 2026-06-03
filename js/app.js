@@ -7,7 +7,7 @@ import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
          updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=6';
 import { gpsTracker, GPSTracker } from './gps.js?v=5';
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
-import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=5';
+import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=6';
 import { RIVERS, getRiver } from './data/rivers.js?v=4';
 import { getSpotsByRiver, SPOT_TYPE_LABELS } from './data/spots.js?v=4';
 
@@ -257,7 +257,7 @@ function switchView(viewId) {
   }
 
   if (viewId === 'fahrt') {
-    if (state.currentRoute && !state.activeTrip) {
+    if (state.currentRoute && !gpsTracker.tracking) {
       prefillTripFromRoute(state.currentRoute);
     }
     updateTripProgressRoute();
@@ -592,7 +592,7 @@ function initFahrtView() {
 }
 
 function prefillTripFromRoute(route) {
-  if (state.activeTrip) return; // Schon eine aktive Fahrt
+  if (gpsTracker.tracking) return; // Laufende GPS-Aufzeichnung nicht überschreiben
   document.getElementById('trip-river-name').textContent =
     route.river?.name || '—';
   document.getElementById('trip-start-name').textContent =
@@ -601,6 +601,7 @@ function prefillTripFromRoute(route) {
     route.endSpot?.name || (Number.isFinite(route.endKm) ? `km ${formatRiverKm(route.endKm)}` : '—');
   updateTripProgressRoute();
   state.activeTrip = {
+    ...(state.activeTrip || {}),
     river: route.startSpot?.river || route.river?.id,
     startSpotName: route.startSpot?.name || (Number.isFinite(route.startKm) ? `km ${formatRiverKm(route.startKm)}` : ''),
     endSpotName: route.endSpot?.name || (Number.isFinite(route.endKm) ? `km ${formatRiverKm(route.endKm)}` : ''),
