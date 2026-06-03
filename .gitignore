@@ -9,6 +9,9 @@ desktop.ini
 *.swp
 *.swo
 
+# Chat-Protokolle / lokale Dokumentation
+docs/
+
 # Logs
 *.log
 npm-debug.log*
