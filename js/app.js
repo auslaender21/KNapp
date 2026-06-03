@@ -5,9 +5,9 @@
 
 import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
          updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=6';
-import { gpsTracker, GPSTracker } from './gps.js?v=5';
+import { gpsTracker, GPSTracker } from './gps.js?v=7';
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
-import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=6';
+import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=7';
 import { RIVERS, getRiver } from './data/rivers.js?v=4';
 import { getSpotsByRiver, SPOT_TYPE_LABELS } from './data/spots.js?v=4';
 
@@ -257,6 +257,7 @@ function switchView(viewId) {
   }
 
   if (viewId === 'fahrt') {
+    syncFahrtNames();
     if (state.currentRoute && !gpsTracker.tracking) {
       prefillTripFromRoute(state.currentRoute);
     }
@@ -289,6 +290,38 @@ function setTripProgressState(text, stateClass = 'searching') {
   box.classList.remove('searching', 'active', 'paused', 'error');
   box.classList.add(stateClass);
   stateEl.textContent = text;
+}
+
+function syncFahrtNames() {
+  // Nur sperren wenn GPS läuft UND bereits eine GPS-Position empfangen wurde
+  if (gpsTracker.tracking && gpsTracker.lastPos !== null) return;
+
+  let startName = '—', endName = '—';
+
+  if (state.currentRoute) {
+    startName = state.currentRoute.startSpot?.name || '—';
+    endName   = state.currentRoute.endSpot?.name   || '—';
+  } else if (state.startSpot || state.endSpot) {
+    if (state.startSpot) {
+      startName = state.startSpot.name + (Number.isFinite(state.startSpot.km) ? ` (km ${formatRiverKm(state.startSpot.km)})` : '');
+    }
+    if (state.endSpot) {
+      endName = state.endSpot.name + (Number.isFinite(state.endSpot.km) ? ` (km ${formatRiverKm(state.endSpot.km)})` : '');
+    }
+  } else {
+    const cs = parseCoordInput('coord-start');
+    const ce = parseCoordInput('coord-end');
+    if (cs) startName = `GPS ${formatCoord(cs.lat)}, ${formatCoord(cs.lng)}`;
+    if (ce) endName   = `GPS ${formatCoord(ce.lat)}, ${formatCoord(ce.lng)}`;
+  }
+
+  if (startName === '—' && endName === '—') return;
+
+  const sEl = document.getElementById('trip-start-name');
+  const eEl = document.getElementById('trip-end-name');
+  if (sEl) sEl.textContent = startName;
+  if (eEl) eEl.textContent = endName;
+  updateTripProgressRoute();
 }
 
 // ── Karte & Routenplanung ────────────────────────
@@ -458,6 +491,7 @@ function updateStartEndUI() {
   if (coordStart && coordEnd) {
     document.getElementById('start-label').textContent = `GPS ${formatCoord(coordStart.lat)}, ${formatCoord(coordStart.lng)}`;
     document.getElementById('end-label').textContent = `GPS ${formatCoord(coordEnd.lat)}, ${formatCoord(coordEnd.lng)}`;
+    syncFahrtNames();
     return;
   }
 
@@ -466,6 +500,7 @@ function updateStartEndUI() {
   if (manualStartKm !== null && manualEndKm !== null) {
     document.getElementById('start-label').textContent = `km ${formatRiverKm(manualStartKm)}`;
     document.getElementById('end-label').textContent = `km ${formatRiverKm(manualEndKm)}`;
+    syncFahrtNames();
     return;
   }
 
@@ -477,6 +512,8 @@ function updateStartEndUI() {
     state.endSpot
       ? `${state.endSpot.name}${Number.isFinite(state.endSpot.km) ? ` (km ${formatRiverKm(state.endSpot.km)})` : ''}`
       : '—';
+
+  syncFahrtNames();
 }
 
 function updateRoute() {
@@ -535,6 +572,7 @@ function updateRoute() {
     clearRoute();
   }
   renderRouteInfo(route);
+  syncFahrtNames();
 }
 
 function renderRouteInfo(route) {
@@ -640,6 +678,7 @@ function startTrip() {
   gpsTracker.onError = (msg, err) => {
     clearTimeout(state.gpsWaitTimeout);
     const isWeakSignal = err?.code === 2 || err?.code === 3 || err?.code === 20;
+    const isPermDenied = err?.code === 1;
     document.getElementById('gps-status').textContent = isWeakSignal
       ? '⚠️ GPS schwach, Suche läuft weiter...'
       : msg;
@@ -649,6 +688,12 @@ function startTrip() {
       isWeakSignal ? 'searching' : 'error'
     );
     setGpsDebug(`Fehler code=${err?.code ?? '—'} | ${msg}`);
+    if (isPermDenied) {
+      // GPS komplett gesperrt: UI zurücksetzen
+      document.getElementById('btn-trip-toggle').textContent = '▶ Starten';
+      document.getElementById('btn-trip-toggle').classList.remove('active');
+      syncFahrtNames();
+    }
   };
 
   gpsTracker.start(isNewTrip);

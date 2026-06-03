@@ -256,9 +256,16 @@
           <div id="logbook-list">
             <!-- Wird per JS befüllt -->
             <div class="empty-state">
-              <div class="empty-icon">📔</div>
-              <h3>Noch keine Fahrten</h3>
-              <p>Starte eine GPS-Tour oder erfasse eine Fahrt manuell.</p>
+              <div class="empty-icon">🧭</div>
+              <h3>Aktuelle Fahrt-Information</h3>
+              <div class="trip-progress paused">
+                <span class="progress-spinner" aria-hidden="true"></span>
+                <div class="trip-progress-text">
+                  <div id="book-live-route">Route: — → —</div>
+                  <div id="book-live-state">⬤ Bereit</div>
+                </div>
+              </div>
+              <p class="empty-live-note">Die Route und der GPS-Status werden hier angezeigt, auch wenn noch keine Fahrt gespeichert ist.</p>
             </div>
           </div>
         </div>
@@ -311,7 +318,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
 <!-- ── App JS (ES Modules) ────────────────────────── -->
-<script type="module" src="./js/app.js?v=25"></script>
+<script type="module" src="./js/app.js?v=30"></script>
 
 </body>
 </html>

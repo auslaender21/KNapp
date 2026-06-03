@@ -74,6 +74,9 @@ class GPSTracker {
     this.lastErrorCode = null;
     this.lastErrorMessage = null;
 
+    // Fast coarse fix via network provider (Wi-Fi/cell), then refine with GPS watch.
+    this._bootstrapCoarsePosition();
+
     this._beginWatch({
       enableHighAccuracy: true,
       timeout: 30000,
@@ -90,6 +93,23 @@ class GPSTracker {
       pos => this._onPosition(pos),
       err => this._onError(err),
       options
+    );
+  }
+
+  _bootstrapCoarsePosition() {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        if (!this.tracking) return;
+        this._onPosition(pos);
+      },
+      () => {
+        // Ignore coarse bootstrap failure; watchPosition retry logic will continue.
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 12000,
+        maximumAge: 180000
+      }
     );
   }
 
@@ -177,7 +197,7 @@ class GPSTracker {
 
   _onError(err) {
     const messages = {
-      1: 'GPS-Zugriff verweigert. Bitte Einstellungen prüfen.',
+      1: 'Standort gesperrt. Bitte im Browser/Handy unter Einstellungen → Standort die Freigabe für diese Seite aktivieren. (GPS, WLAN und Mobilfunk sind alle betroffen.)',
       2: 'GPS-Position nicht verfügbar.',
       3: 'GPS-Timeout. Versuche es erneut.',
       20: 'GPS-Timeout. Versuche es erneut.'
@@ -201,6 +221,11 @@ class GPSTracker {
       }
       this.onError?.(`GPS schwach, suche weiter... (${this.weakErrorCount})`, err);
       return;
+    }
+
+    // Code 1 = PERMISSION_DENIED: Tracking sofort beenden, kein Retry möglich
+    if (err.code === 1) {
+      this.stop();
     }
 
     this.onError?.(this.lastErrorMessage, err);

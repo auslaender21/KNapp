@@ -94,17 +94,40 @@ export async function deleteTrip(id) {
 
 // ── UI Rendering ─────────────────────────────────
 
+function getLiveTripStatus() {
+  const start = document.getElementById('trip-start-name')?.textContent?.trim() || '—';
+  const end = document.getElementById('trip-end-name')?.textContent?.trim() || '—';
+  const statusEl = document.getElementById('gps-status');
+  const statusText = statusEl?.textContent?.trim() || 'GPS bereit';
+  const statusClass = statusEl?.className || '';
+
+  let progressClass = 'paused';
+  if (statusClass.includes('active')) progressClass = 'active';
+  else if (statusClass.includes('error')) progressClass = 'error';
+  else if (statusText.includes('gesucht') || statusText.includes('schwach')) progressClass = 'searching';
+
+  return { start, end, statusText, progressClass };
+}
+
 /** Fahrtenliste rendern */
 export async function renderLogbook(container) {
   const trips = await loadTrips();
   container.innerHTML = '';
 
   if (trips.length === 0) {
+    const live = getLiveTripStatus();
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">📔</div>
-        <h3>Noch keine Fahrten</h3>
-        <p>Starte deine erste Kajaktour und sie wird hier aufgezeichnet.</p>
+        <div class="empty-icon">🧭</div>
+        <h3>Aktuelle Fahrt-Information</h3>
+        <div class="trip-progress ${live.progressClass}">
+          <span class="progress-spinner" aria-hidden="true"></span>
+          <div class="trip-progress-text">
+            <div id="book-live-route">Route: ${live.start} → ${live.end}</div>
+            <div id="book-live-state">${live.statusText}</div>
+          </div>
+        </div>
+        <p class="empty-live-note">Die Route und der GPS-Status werden hier angezeigt, auch wenn noch keine Fahrt gespeichert ist.</p>
       </div>`;
     return;
   }
