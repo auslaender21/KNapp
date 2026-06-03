@@ -293,9 +293,6 @@ function setTripProgressState(text, stateClass = 'searching') {
 }
 
 function syncFahrtNames() {
-  // Nur sperren wenn GPS läuft UND bereits eine GPS-Position empfangen wurde
-  if (gpsTracker.tracking && gpsTracker.lastPos !== null) return;
-
   let startName = '—', endName = '—';
 
   if (state.currentRoute) {
@@ -658,6 +655,8 @@ function toggleTrip() {
 function startTrip() {
   const isNewTrip = !state.activeTrip;
   if (isNewTrip) state.activeTrip = {};
+
+  syncFahrtNames(); // Route immer anzeigen, auch wenn GPS startet
 
   clearTimeout(state.gpsWaitTimeout);
 

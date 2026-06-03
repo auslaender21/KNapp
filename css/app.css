@@ -141,8 +141,13 @@ input, textarea, select, button {
   border-radius: 8px;
   padding: 2px 6px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  cursor: grab;
+}
+#header-gps-debug::-webkit-scrollbar {
+  display: none;
 }
 
 #app.debug-visible #header-gps-debug {
