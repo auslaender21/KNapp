@@ -5,7 +5,7 @@
 
 import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
          updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=6';
-import { gpsTracker, GPSTracker } from './gps.js?v=8';
+import { gpsTracker, GPSTracker } from './gps.js?v=8'; // app v35
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
 import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=7';
 import { RIVERS, getRiver } from './data/rivers.js?v=4';
@@ -770,6 +770,7 @@ function resetRoute() {
   state.currentRoute = null;
   state.startSpot = null;
   state.endSpot = null;
+  state.selectedRiver = null;
   clearCoordInputs();
   const startSel = document.getElementById('spot-start');
   const endSel   = document.getElementById('spot-end');
@@ -779,6 +780,8 @@ function resetRoute() {
   const kmEnd   = document.getElementById('km-end');
   if (kmStart) kmStart.value = '';
   if (kmEnd)   kmEnd.value   = '';
+  const riverSel = document.getElementById('river-select');
+  if (riverSel) riverSel.value = '';
   clearRoute();
   clearRouteInfo();
 }
