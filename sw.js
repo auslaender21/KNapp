@@ -12,7 +12,7 @@ const SHELL_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './css/app.css?v=6',
+  './css/app.css?v=7',
   './css/app.css',
   './js/app.js?v=31',
   './js/app.js',
