@@ -258,11 +258,19 @@ function showTripDetail(trip) {
     ` : ''}
 
     <div class="detail-actions">
+      <button id="btn-show-on-map" class="btn-secondary" ${trip.track ? '' : 'hidden'}>🗺️ Auf Karte</button>
       <button id="btn-edit-trip" class="btn-secondary">✏️ Bearbeiten</button>
       <button id="btn-delete-trip" class="btn-danger" data-id="${trip.id}">🗑️ Löschen</button>
-      ${trip.track ? `<button id="btn-export-gpx" class="btn-secondary">📤 GPX Export</button>` : ''}
+      ${trip.track ? `<button id="btn-export-gpx" class="btn-secondary">📤 GPX</button>` : ''}
     </div>
   `;
+
+  // "Auf Karte zeigen" handler – via Custom Event (app.js hört zu)
+  content.querySelector('#btn-show-on-map')?.addEventListener('click', () => {
+    if (!trip.track) return;
+    closeModal();
+    document.dispatchEvent(new CustomEvent('kapp:showTrackOnMap', { detail: { track: trip.track } }));
+  });
 
   // Edit handler
   content.querySelector('#btn-edit-trip')?.addEventListener('click', () => {

@@ -4,10 +4,11 @@
  */
 
 import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
-         updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots } from './map.js?v=6';
-import { gpsTracker, GPSTracker } from './gps.js?v=8'; // app v36
+         updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots,
+         showSavedTrack, clearSavedTrack } from './map.js?v=8';
+import { gpsTracker, GPSTracker } from './gps.js?v=10'; // app v39
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
-import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=7';
+import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=8';
 import { RIVERS, getRiver } from './data/rivers.js?v=4';
 import { getSpotsByRiver, SPOT_TYPE_LABELS } from './data/spots.js?v=4';
 
@@ -201,6 +202,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   initModal();
   registerSW();
 
+  // Track aus Fahrtenbuch auf Karte anzeigen
+  document.addEventListener('kapp:showTrackOnMap', (e) => {
+    clearSavedTrack();
+    switchView('karte');
+    setTimeout(() => showSavedTrack(e.detail.track), 100);
+  });
+
   // URL-Parameter für Direktnavigation
   const params = new URLSearchParams(location.search);
   const initView = params.get('view');
@@ -253,6 +261,12 @@ function switchView(viewId) {
     setTimeout(() => {
       const map = window._kanuMap;
       if (map) map.invalidateSize();
+      // Während aktiver Fahrt: Karte auf aktuelle GPS-Position zentrieren
+      if (gpsTracker.tracking && gpsTracker.currentPos) {
+        const { lat, lng } = gpsTracker.currentPos;
+        const acc = gpsTracker.currentPos.accuracy ?? null;
+        updatePosition(lat, lng, acc, true);
+      }
     }, 50);
   }
 
@@ -656,35 +670,75 @@ function toggleTrip() {
   if (gpsTracker.tracking) {
     stopTrip();
   } else {
-    if (!hasValidRoute()) {
-      alert('Bitte zuerst Start und Ziel auf der Karte festlegen.');
-      return;
-    }
     startTrip();
   }
 }
 
 function startTrip() {
   const isNewTrip = !state.activeTrip;
-  if (isNewTrip) state.activeTrip = {};
+  if (isNewTrip) {
+    state.activeTrip = {};
+    // Ohne Route: aktuelle GPS-Position als Start merken
+    if (!hasValidRoute()) {
+      state.activeTrip._gpsAutoStart = true;
+    }
+  }
 
-  syncFahrtNames(); // Route immer anzeigen, auch wenn GPS startet
-
+  syncFahrtNames();
   clearTimeout(state.gpsWaitTimeout);
 
-  gpsTracker.onUpdate = (stats, pos) => {
-    clearTimeout(state.gpsWaitTimeout);
-    updateTripDisplay(stats);
-    updatePosition(pos.lat, pos.lng, false);
-    updateTrack(gpsTracker.track);
+  gpsTracker.onAutoPause = () => {
+    document.getElementById('gps-status').textContent = '⏸️ Auto-Pause (kein Bewegung)';
+    document.getElementById('gps-status').className = 'gps-status paused';
+    setTripProgressState('Automatische Pause – Timer angehalten.', 'paused');
+    // Fahrt-Tab Auto-Pause anzeigen
+    document.getElementById('stat-time')?.classList.add('paused');
+  };
+
+  gpsTracker.onAutoResume = () => {
     document.getElementById('gps-status').textContent = '📍 GPS aktiv';
     document.getElementById('gps-status').className = 'gps-status active';
     setTripProgressState('GPS aktiv, Position wird laufend aktualisiert.', 'active');
+    document.getElementById('stat-time')?.classList.remove('paused');
+  };
+
+  gpsTracker.onUpdate = (stats, pos) => {
+    clearTimeout(state.gpsWaitTimeout);
+
+    // Auto-Start: erste GPS-Position als Startpunkt setzen
+    if (state.activeTrip?._gpsAutoStart && !state.activeTrip._startSet) {
+      state.activeTrip._startSet = true;
+      state.activeTrip.startSpotName = `GPS ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+      state.activeTrip.startCoords = `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+      document.getElementById('trip-start-name').textContent = 'GPS-Start';
+      updateTripProgressRoute();
+    }
+
+    if (!stats.isAutoPaused) {
+      updateTripDisplay(stats);
+      updatePosition(pos.lat, pos.lng, gpsTracker.currentPos?.accuracy ?? null, false);
+      updateTrack(gpsTracker.track);
+
+      // Karte: während aktiver Fahrt Position zentrieren wenn Karte offen
+      if (state.activeView === 'karte') {
+        updatePosition(pos.lat, pos.lng, gpsTracker.currentPos?.accuracy ?? null, true);
+      }
+
+      if (!stats.isAutoPaused) {
+        document.getElementById('gps-status').textContent = '📍 GPS aktiv';
+        document.getElementById('gps-status').className = 'gps-status active';
+        setTripProgressState('GPS aktiv, Position wird laufend aktualisiert.', 'active');
+      }
+    } else {
+      // Im Auto-Pause: Position trotzdem aktualisieren
+      updatePosition(pos.lat, pos.lng, gpsTracker.currentPos?.accuracy ?? null, false);
+    }
+
     const fixTs = stats.currentPos?.ts ? new Date(stats.currentPos.ts).toLocaleTimeString() : '—';
     const acc = Number.isFinite(stats.currentPos?.accuracy) ? `${Math.round(stats.currentPos.accuracy)}m` : '—';
     const lat = Number.isFinite(stats.currentPos?.lat) ? stats.currentPos.lat.toFixed(5) : '—';
     const lng = Number.isFinite(stats.currentPos?.lng) ? stats.currentPos.lng.toFixed(5) : '—';
-    setGpsDebug(`Fix ${fixTs} | acc ${acc} | ${lat}, ${lng}`);
+    setGpsDebug(`Fix ${fixTs} | acc ${acc} | ${lat}, ${lng} | autoPause: ${stats.isAutoPaused}`);
   };
   gpsTracker.onError = (msg, err) => {
     clearTimeout(state.gpsWaitTimeout);
@@ -717,6 +771,9 @@ function startTrip() {
   setGpsDebug('Suche GPS-Fix... Standortfreigabe und Signal prüfen');
   document.getElementById('btn-save-trip').hidden = true;
 
+  // Fahrt beginnt auf Karte
+  if (state.activeView !== 'karte') switchView('karte');
+
   state.gpsWaitTimeout = setTimeout(() => {
     const hasFix = !!gpsTracker.getStats().currentPos;
     if (gpsTracker.tracking && !hasFix) {
@@ -728,16 +785,27 @@ function startTrip() {
     }
   }, 20000);
 
-  // Timer
+  // Timer: Fahrzeit + Gesamtzeit
   clearInterval(state.timerInterval);
   state.timerInterval = setInterval(() => {
     const stats = gpsTracker.getStats();
     document.getElementById('stat-time').textContent =
       GPSTracker.formatDuration(stats.elapsed);
+    const totalEl = document.getElementById('stat-total-time');
+    if (totalEl) totalEl.textContent = GPSTracker.formatDuration(stats.totalElapsed);
   }, 1000);
 }
 
 function stopTrip() {
+  // Auto-Start ohne Route: aktuelle Position als Ziel setzen
+  if (state.activeTrip?._gpsAutoStart && gpsTracker.currentPos) {
+    const pos = gpsTracker.currentPos;
+    state.activeTrip.endSpotName = `GPS ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+    state.activeTrip.endCoords = `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+    document.getElementById('trip-end-name').textContent = 'GPS-Ziel';
+    updateTripProgressRoute();
+  }
+
   gpsTracker.stop();
   clearTimeout(state.gpsWaitTimeout);
   clearInterval(state.timerInterval);
@@ -805,12 +873,16 @@ function resetTrip() {
   clearTimeout(state.gpsWaitTimeout);
   state.activeTrip = null;
   clearTrack();
+  clearSavedTrack();
   resetRoute();
 
   document.getElementById('stat-dist').textContent = '0.00';
   document.getElementById('stat-speed').textContent = '0.0';
   document.getElementById('stat-avg').textContent = '0.0';
   document.getElementById('stat-time').textContent = '00:00:00';
+  document.getElementById('stat-time')?.classList.remove('paused');
+  const totalEl = document.getElementById('stat-total-time');
+  if (totalEl) totalEl.textContent = '00:00:00';
   document.getElementById('btn-trip-toggle').textContent = '▶ Starten';
   document.getElementById('btn-save-trip').hidden = true;
   document.getElementById('gps-status').textContent = '⬤ Bereit';
@@ -852,9 +924,15 @@ function initBuchView() {
 
 // ── Modal ─────────────────────────────────────────
 function initModal() {
-  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('modal-close').addEventListener('click', () => {
+    closeModal();
+    clearSavedTrack();
+  });
   document.getElementById('trip-detail-modal').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeModal();
+    if (e.target === e.currentTarget) {
+      closeModal();
+      clearSavedTrack();
+    }
   });
 }
 

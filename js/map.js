@@ -198,14 +198,16 @@ export function clearRoute() {
 }
 
 /** GPS-Position auf Karte aktualisieren */
-export function updatePosition(lat, lng, center = false) {
+export function updatePosition(lat, lng, accuracy = null, center = false) {
   if (!map) return;
+  const circleRadius = (Number.isFinite(accuracy) && accuracy > 0) ? accuracy : 20;
   if (!posMarker) {
     posMarker = L.marker([lat, lng], { icon: createPosIcon(), zIndexOffset: 1000 }).addTo(map);
-    posCircle = L.circle([lat, lng], { radius: 50, color: '#06b6d4', fillColor: '#06b6d4', fillOpacity: 0.1, weight: 1 }).addTo(map);
+    posCircle = L.circle([lat, lng], { radius: circleRadius, color: '#06b6d4', fillColor: '#06b6d4', fillOpacity: 0.12, weight: 1 }).addTo(map);
   } else {
     posMarker.setLatLng([lat, lng]);
     posCircle.setLatLng([lat, lng]);
+    posCircle.setRadius(circleRadius);
   }
   if (center) map.setView([lat, lng], map.getZoom() < 14 ? 15 : map.getZoom());
 }
@@ -234,6 +236,26 @@ export function updateTrack(trackPoints) {
 
 export function clearTrack() {
   if (trackLine) { trackLine.remove(); trackLine = null; }
+}
+
+/** Gespeicherten Track (aus Fahrtenbuch) auf Karte anzeigen */
+let savedTrackLine = null;
+export function showSavedTrack(geoJson) {
+  if (savedTrackLine) { savedTrackLine.remove(); savedTrackLine = null; }
+  if (!map || !geoJson?.geometry?.coordinates?.length) return;
+  const latlngs = geoJson.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+  if (latlngs.length < 2) return;
+  savedTrackLine = L.polyline(latlngs, {
+    color: '#a78bfa',
+    weight: 4,
+    opacity: 0.85,
+    dashArray: '6 4'
+  }).addTo(map);
+  map.fitBounds(savedTrackLine.getBounds(), { padding: [30, 30] });
+}
+
+export function clearSavedTrack() {
+  if (savedTrackLine) { savedTrackLine.remove(); savedTrackLine = null; }
 }
 
 /** Spot Popup anzeigen */
@@ -266,14 +288,16 @@ export async function centerOnUser() {
       pos => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy;
         if (map) {
           const targetZoom = Math.max(map.getZoom(), 16);
           map.setView([lat, lng], targetZoom);
+          updatePosition(lat, lng, accuracy, false);
         }
-        resolve({ lat, lng });
+        resolve({ lat, lng, accuracy });
       },
       err => reject(err),
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
     );
   });
 }

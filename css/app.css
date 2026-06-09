@@ -806,6 +806,17 @@ textarea { resize: vertical; }
   letter-spacing: 1px;
   line-height: 1;
 }
+.trip-timer.paused {
+  color: var(--warning);
+  animation: pulse 1.5s infinite;
+}
+.trip-timer-total {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.5px;
+}
 
 /* Small Metrics Grid */
 .trip-metrics {

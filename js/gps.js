@@ -4,7 +4,10 @@
  * Track-Aufzeichnung alle 10 Sekunden
  */
 
-const TRACK_INTERVAL_MS = 10000; // alle 10 Sekunden einen Punkt
+const TRACK_INTERVAL_MS = 5000; // alle 5 Sekunden einen Punkt
+const AUTO_PAUSE_SPEED_KMH = 0.5;  // unter 0.5 km/h → Auto-Pause
+const AUTO_PAUSE_DELAY_MS = 10000; // 10s Stillstand bevor Pause
+const AUTO_RESUME_SPEED_KMH = 1.0; // über 1.0 km/h → Auto-Resume
 
 /** Haversine-Formel: Distanz in km zwischen zwei GPS-Punkten */
 function haversine(lat1, lng1, lat2, lng2) {
@@ -35,11 +38,15 @@ class GPSTracker {
     this.weakErrorCount = 0;
     this.lastWeakRetryAt = 0;
     this.pausedAt = null;      // timestamp der letzten Pause
-    this.totalPausedMs = 0;    // kumulierte Pausenzeit
+    this.totalPausedMs = 0;    // kumulierte Pausenzeit (nur Fahrzeit)
+    this.isAutoPaused = false;  // Auto-Pause aktiv?
+    this.autoPauseTimeout = null; // Timer für Auto-Pause
 
     // Callbacks
     this.onUpdate = null;      // fn(stats) – Called on every position update
     this.onError = null;       // fn(err)
+    this.onAutoPause = null;   // fn() – Auto-Pause ausgelöst
+    this.onAutoResume = null;  // fn() – Auto-Resume ausgelöst
   }
 
   /** GPS-Tracking starten */
@@ -60,15 +67,20 @@ class GPSTracker {
       this.lastTrackPoint = 0;
       this.totalPausedMs = 0;
       this.pausedAt = null;
+      this.isAutoPaused = false;
+      clearTimeout(this.autoPauseTimeout);
+      this.autoPauseTimeout = null;
       this.usedLowAccuracyFallback = false;
       this.weakErrorCount = 0;
       this.lastWeakRetryAt = 0;
     } else if (this.pausedAt) {
       this.totalPausedMs += Date.now() - this.pausedAt;
       this.pausedAt = null;
-      // Avoid counting pause gap as movement when resuming.
+      // Pause-Lücke nicht als Bewegung zählen
       this.lastPos = null;
-    }
+      this.isAutoPaused = false;
+      clearTimeout(this.autoPauseTimeout);
+      this.autoPauseTimeout = null;
 
     this.tracking = true;
     this.lastErrorCode = null;
@@ -119,6 +131,9 @@ class GPSTracker {
     this.tracking = false;
     this.pausedAt = Date.now();
     this.currentSpeed = 0;
+    this.isAutoPaused = false;
+    clearTimeout(this.autoPauseTimeout);
+    this.autoPauseTimeout = null;
     if (this.watchId !== null) {
       navigator.geolocation.clearWatch(this.watchId);
       this.watchId = null;
@@ -142,6 +157,9 @@ class GPSTracker {
     this.lastWeakRetryAt = 0;
     this.pausedAt = null;
     this.totalPausedMs = 0;
+    this.isAutoPaused = false;
+    clearTimeout(this.autoPauseTimeout);
+    this.autoPauseTimeout = null;
   }
 
   /** Einmalige Positionsabfrage (für Karte, ohne Tracking) */
@@ -170,9 +188,15 @@ class GPSTracker {
 
     // Distanz berechnen
     if (this.lastPos) {
+      // Schlechte GPS-Genauigkeit ignorieren (>80m = GPS-Drift, kein echter Move)
+      const accuracy = pos.coords.accuracy;
+      if (Number.isFinite(accuracy) && accuracy > 80) {
+        this.onUpdate?.(this.getStats(), { lat, lng });
+        return;
+      }
       const d = haversine(this.lastPos.lat, this.lastPos.lng, lat, lng);
-      // Entrauschen: nur Distanz > 5m zählen
-      if (d > 0.005) {
+      // Entrauschen: nur Distanz > 8m zählen
+      if (d > 0.008) {
         this.totalDistance += d;
         // Geschwindigkeit aus GPS-Daten oder selbst berechnen
         if (speed !== null && speed >= 0) {
@@ -181,13 +205,44 @@ class GPSTracker {
           const dt = (ts - this.lastPos.ts) / 3600000; // Stunden
           this.currentSpeed = dt > 0 ? d / dt : 0;
         }
+      } else {
+        this.currentSpeed = 0;
       }
     }
 
     this.lastPos = { lat, lng, ts };
 
-    // Track-Punkt nur alle TRACK_INTERVAL_MS speichern
-    if (ts - this.lastTrackPoint >= TRACK_INTERVAL_MS) {
+    // Auto-Pause: Stillstand → Timer pausieren
+    if (this.currentSpeed < AUTO_PAUSE_SPEED_KMH) {
+      if (!this.isAutoPaused && !this.autoPauseTimeout) {
+        this.autoPauseTimeout = setTimeout(() => {
+          if (!this.isAutoPaused && this.tracking) {
+            this.isAutoPaused = true;
+            this.pausedAt = Date.now();
+            this.onAutoPause?.();
+          }
+          this.autoPauseTimeout = null;
+        }, AUTO_PAUSE_DELAY_MS);
+      }
+    } else {
+      // Bewegung erkannt
+      clearTimeout(this.autoPauseTimeout);
+      this.autoPauseTimeout = null;
+      if (this.isAutoPaused) {
+        this.isAutoPaused = false;
+        if (this.pausedAt) {
+          this.totalPausedMs += Date.now() - this.pausedAt;
+          this.pausedAt = null;
+        }
+        this.lastPos = null; // Sprung nach Pause vermeiden
+        this.onAutoResume?.();
+        this.onUpdate?.(this.getStats(), { lat, lng });
+        return;
+      }
+    }
+
+    // Track-Punkt nur alle TRACK_INTERVAL_MS speichern (nicht während Auto-Pause)
+    if (!this.isAutoPaused && ts - this.lastTrackPoint >= TRACK_INTERVAL_MS) {
       this.track.push({ lat, lng, ts, speed: this.currentSpeed });
       this.lastTrackPoint = ts;
     }
@@ -237,15 +292,20 @@ class GPSTracker {
     const elapsed = this.startTime
       ? Math.max(0, Date.now() - this.startTime - this.totalPausedMs - activeNowPausedMs)
       : 0;
+    const totalElapsed = this.startTime
+      ? Math.max(0, Date.now() - this.startTime)
+      : 0;
     const hours = elapsed / 3600000;
     const avgSpeed = hours > 0 ? this.totalDistance / hours : 0;
     return {
       distance: this.totalDistance,        // km
-      elapsed,                              // ms
+      elapsed,                              // ms (nur Fahrzeit, ohne Pausen)
+      totalElapsed,                         // ms (Gesamtzeit inkl. Pausen)
       currentSpeed: this.currentSpeed,      // km/h
       avgSpeed,                             // km/h
       trackPoints: this.track.length,
       isTracking: this.tracking,
+      isAutoPaused: this.isAutoPaused,
       currentPos: this.currentPos,
       lastErrorCode: this.lastErrorCode,
       lastErrorMessage: this.lastErrorMessage
