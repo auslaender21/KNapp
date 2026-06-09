@@ -6,7 +6,7 @@
 
 const TRACK_INTERVAL_MS = 5000; // alle 5 Sekunden einen Punkt
 const AUTO_PAUSE_SPEED_KMH = 0.5;  // unter 0.5 km/h → Auto-Pause
-const AUTO_PAUSE_DELAY_MS = 10000; // 10s Stillstand bevor Pause
+const AUTO_PAUSE_DELAY_MS = 5000; // 5s Stillstand bevor Pause
 const AUTO_RESUME_SPEED_KMH = 1.0; // über 1.0 km/h → Auto-Resume
 
 /** Haversine-Formel: Distanz in km zwischen zwei GPS-Punkten */
