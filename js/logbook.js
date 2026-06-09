@@ -153,7 +153,7 @@ function createTripCard(trip) {
   card.innerHTML = `
     <div class="trip-card-header">
       <div class="trip-date">${dateStr}</div>
-      ${trip.isGpsTracked ? '<span class="gps-badge">📍 GPS</span>' : ''}
+      ${trip.isGpsTracked ? '<span class="gps-badge">📍 GPS</span>' : trip.isGpxImported ? '<span class="gps-badge gpx-badge">📥 GPX</span>' : ''}
     </div>
     <div class="trip-route">
       <span class="trip-river" style="color:${river?.color || '#06b6d4'}">
@@ -243,7 +243,7 @@ function showTripDetail(trip) {
         <div class="detail-stat-lbl">Ø Tempo</div>
       </div>
       <div class="detail-stat">
-        <div class="detail-stat-val">${trip.isGpsTracked ? '📍 GPS' : '✏️ Manuell'}</div>
+        <div class="detail-stat-val">${trip.isGpsTracked ? '📍 GPS' : trip.isGpxImported ? '📥 GPX' : '✏️ Manuell'}</div>
         <div class="detail-stat-lbl">Erfassung</div>
       </div>
     </div>
@@ -437,11 +437,12 @@ export function importGPX(file, onResult) {
         endCoords: endCoord,
         startSpotName: gpxName ? `Start (${gpxName})` : `Start`,
         endSpotName: gpxName ? `Ziel (${gpxName})` : `Ziel`,
-        distanceKm: Math.round(totalKm * 100) / 100,
+        distanceKm: Math.round(totalKm * 1000) / 1000,
         durationMin,
         avgSpeedKmh: durationMin > 0 ? Math.round((totalKm / (durationMin / 60)) * 10) / 10 : 0,
         track,
         isGpsTracked: false,
+        isGpxImported: true,
         notes: gpxName ? `Importiert aus GPX: ${gpxName}` : 'Importiert aus GPX'
       }, null);
     } catch (err) {
@@ -496,9 +497,9 @@ export function renderTripForm(container, prefill = {}, onSave, onCancel) {
           <input type="date" id="tf-date" value="${prefill.date || new Date().toISOString().split('T')[0]}" required>
         </div>
         <div class="form-group">
-          <label for="tf-river">Fluss</label>
-          <select id="tf-river" required>
-            <option value="">— Fluss wählen —</option>
+          <label for="tf-river">Fluss <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+          <select id="tf-river">
+            <option value="">— Fluss wählen (optional) —</option>
             ${riverOptions}
           </select>
         </div>
@@ -525,11 +526,11 @@ export function renderTripForm(container, prefill = {}, onSave, onCancel) {
         <div class="form-row">
           <div class="form-group">
             <label for="tf-dist">Distanz (km)</label>
-            <input type="number" id="tf-dist" step="0.1" min="0" placeholder="0.0" value="${prefill.distanceKm || ''}">
+            <input type="number" id="tf-dist" step="0.01" min="0" placeholder="0.00" value="${prefill.distanceKm != null ? prefill.distanceKm : ''}">
           </div>
           <div class="form-group">
             <label for="tf-dur">Dauer (min)</label>
-            <input type="number" id="tf-dur" min="0" placeholder="0" value="${prefill.durationMin || ''}">
+            <input type="number" id="tf-dur" step="1" min="0" placeholder="0" value="${prefill.durationMin != null ? prefill.durationMin : ''}">
           </div>
         </div>
         <div class="form-row">
@@ -578,8 +579,10 @@ export function renderTripForm(container, prefill = {}, onSave, onCancel) {
         : 'Diesen Eintrag wirklich speichern?';
       if (!confirm(ask)) return;
 
-      const distVal = parseFloat(document.getElementById('tf-dist').value) || 0;
-      const durVal = parseInt(document.getElementById('tf-dur').value) || 0;
+      const distVal = parseFloat(document.getElementById('tf-dist').value);
+      const durVal  = parseInt(document.getElementById('tf-dur').value);
+      const distKm  = Number.isFinite(distVal) && distVal >= 0 ? distVal : 0;
+      const durMin  = Number.isFinite(durVal)  && durVal  >= 0 ? durVal  : 0;
       const startCoordsRaw = document.getElementById('tf-start-coord').value.trim();
       const endCoordsRaw = document.getElementById('tf-end-coord').value.trim();
       const startCoords = normalizeLatLng(startCoordsRaw);
@@ -606,14 +609,15 @@ export function renderTripForm(container, prefill = {}, onSave, onCancel) {
         endSpotName: document.getElementById('tf-end').value,
         startCoords,
         endCoords,
-        distanceKm: distVal,
-        durationMin: durVal,
-        avgSpeedKmh: (durVal > 0 && distVal > 0) ? (distVal / (durVal / 60)) : 0,
+        distanceKm: distKm,
+        durationMin: durMin,
+        avgSpeedKmh: (durMin > 0 && distKm > 0) ? Math.round((distKm / (durMin / 60)) * 10) / 10 : 0,
         weather: document.getElementById('tf-weather').value,
         waterLevel: document.getElementById('tf-water').value,
         notes: document.getElementById('tf-notes').value,
         track: manualTrack,
-        isGpsTracked: prefill.isGpsTracked ?? false
+        isGpsTracked: prefill.isGpsTracked ?? false,
+        isGpxImported: prefill.isGpxImported ?? false
       };
       const saved = await saveTrip(tripData);
       onSave?.(saved);
