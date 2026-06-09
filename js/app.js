@@ -6,7 +6,7 @@
 import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
          updatePosition, updateTrack, clearTrack, centerOnUser, getNearestSpots,
          showSavedTrack, clearSavedTrack } from './map.js?v=8';
-import { gpsTracker, GPSTracker } from './gps.js?v=10'; // app v39
+import { gpsTracker, GPSTracker } from './gps.js?v=11'; // app v41
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
 import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=8';
 import { RIVERS, getRiver } from './data/rivers.js?v=4';
@@ -25,7 +25,22 @@ const state = {
   timerInterval: null,
   gpsWaitTimeout: null
 };
-
+// ── Screen Wake Lock (verhindert Bildschirm-Aus während Fahrt) ───────
+let _wakeLock = null;
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    _wakeLock = await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+  } catch (_) { /* nicht unterstützt oder verweigert – unkritisch */ }
+}
+function releaseWakeLock() {
+  if (_wakeLock) { _wakeLock.release(); _wakeLock = null; }
+}
+// Wake Lock nach Bildschirm-Ein (z.B. Benachrichtigung) wiederherstellen
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && gpsTracker.tracking) acquireWakeLock();
+});
 function ensureStylesheet(href) {
   const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
   const exists = links.some(link => link.href === href);
@@ -774,6 +789,9 @@ function startTrip() {
   // Fahrt beginnt auf Karte
   if (state.activeView !== 'karte') switchView('karte');
 
+  // Bildschirm während Fahrt wach halten
+  acquireWakeLock();
+
   state.gpsWaitTimeout = setTimeout(() => {
     const hasFix = !!gpsTracker.getStats().currentPos;
     if (gpsTracker.tracking && !hasFix) {
@@ -809,6 +827,7 @@ function stopTrip() {
   gpsTracker.stop();
   clearTimeout(state.gpsWaitTimeout);
   clearInterval(state.timerInterval);
+  releaseWakeLock();
 
   document.getElementById('btn-trip-toggle').textContent = '▶ Weiterfahren';
   document.getElementById('btn-trip-toggle').classList.remove('active');

@@ -41,6 +41,7 @@ class GPSTracker {
     this.totalPausedMs = 0;    // kumulierte Pausenzeit (nur Fahrzeit)
     this.isAutoPaused = false;  // Auto-Pause aktiv?
     this.autoPauseTimeout = null; // Timer für Auto-Pause
+    this._speedSamples = [];   // Gleitender Durchschnitt für Tempo
 
     // Callbacks
     this.onUpdate = null;      // fn(stats) – Called on every position update
@@ -161,6 +162,7 @@ class GPSTracker {
     this.isAutoPaused = false;
     clearTimeout(this.autoPauseTimeout);
     this.autoPauseTimeout = null;
+    this._speedSamples = [];
   }
 
   /** Einmalige Positionsabfrage (für Karte, ohne Tracking) */
@@ -199,15 +201,17 @@ class GPSTracker {
       // Entrauschen: nur Distanz > 8m zählen
       if (d > 0.008) {
         this.totalDistance += d;
-        // Geschwindigkeit aus GPS-Daten oder selbst berechnen
-        if (speed !== null && speed >= 0) {
-          this.currentSpeed = speed;
-        } else {
-          const dt = (ts - this.lastPos.ts) / 3600000; // Stunden
-          this.currentSpeed = dt > 0 ? d / dt : 0;
-        }
+        // Tempo immer aus Positions-Delta berechnen (pos.coords.speed ist zu unzuverlässig)
+        // und auf max. 30 km/h begrenzen (Kajak-Sanitätscheck)
+        const dt = (ts - this.lastPos.ts) / 3600000; // Stunden
+        const rawSpeed = dt > 0 ? Math.min(d / dt, 30) : 0;
+        // Gleitender Durchschnitt über 3 Messungen für ruhigere Anzeige
+        this._speedSamples.push(rawSpeed);
+        if (this._speedSamples.length > 3) this._speedSamples.shift();
+        this.currentSpeed = this._speedSamples.reduce((a, b) => a + b, 0) / this._speedSamples.length;
       } else {
         this.currentSpeed = 0;
+        this._speedSamples = [];
       }
     }
 
