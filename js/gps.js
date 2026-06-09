@@ -81,6 +81,7 @@ class GPSTracker {
       this.isAutoPaused = false;
       clearTimeout(this.autoPauseTimeout);
       this.autoPauseTimeout = null;
+    }
 
     this.tracking = true;
     this.lastErrorCode = null;
