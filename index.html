@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
   <!-- App CSS -->
-  <link rel="stylesheet" href="./css/app.css?v=14">
+  <link rel="stylesheet" href="./css/app.css?v=15">
 </head>
 <body>
 
@@ -34,7 +34,7 @@
           <h1>KanuApp</h1>
           <div id="header-gps-debug">DEBUG: bereit</div>
         </div>
-        <div class="header-subtitle">DE · NL · BE · <span id="app-version">v43</span></div>
+        <div class="header-subtitle">DE · NL · BE · <span id="app-version">v44</span></div>
       </div>
     </div>
     <div class="header-actions">
@@ -161,6 +161,22 @@
 
     <!-- ══ VIEW: FAHRT ══════════════════════════════ -->
     <section id="view-fahrt" class="view">
+
+      <!-- GPS-Berechtigung verweigert (wird per JS eingeblendet) -->
+      <div id="gps-permission-banner" class="gps-perm-banner" hidden>
+        <div class="gps-perm-icon">🔒</div>
+        <div class="gps-perm-title">Standort-Berechtigung fehlt</div>
+        <div class="gps-perm-text">
+          Die App hat keinen Zugriff auf deinen Standort. Bitte erlaube ihn manuell:
+        </div>
+        <ol class="gps-perm-steps">
+          <li>Tippe auf <strong>⋮ Menü</strong> (Chrome: oben rechts) oder halte das App-Icon gedrückt</li>
+          <li>Wähle <strong>Einstellungen → Website-Einstellungen</strong></li>
+          <li>Tippe auf <strong>Standort → Erlauben</strong></li>
+          <li>Lade die App danach neu</li>
+        </ol>
+        <button id="btn-gps-retry" class="btn-primary btn-full">🔄 Erneut versuchen</button>
+      </div>
 
       <div id="trip-progress" class="trip-progress paused" role="status" aria-live="polite" hidden>
         <span class="progress-spinner" aria-hidden="true"></span>
@@ -342,7 +358,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
 <!-- ── App JS (ES Modules) ────────────────────────── -->
-<script type="module" src="./js/app.js?v=41"></script>
+<script type="module" src="./js/app.js?v=42"></script>
 
 </body>
 </html>

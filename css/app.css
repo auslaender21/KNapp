@@ -874,6 +874,31 @@ textarea { resize: vertical; }
   padding: 7px 10px;
 }
 
+/* GPS Permission Banner */
+.gps-perm-banner {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gps-perm-icon { font-size: 32px; text-align: center; }
+.gps-perm-title { font-size: 16px; font-weight: 700; color: var(--danger); text-align: center; }
+.gps-perm-text { font-size: 13px; color: var(--text-secondary); }
+.gps-perm-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.gps-perm-steps strong { color: var(--text-primary); }
+
 /* Trip Control Buttons */
 .trip-controls {
   display: flex;

@@ -8,8 +8,7 @@ import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
          showSavedTrack, clearSavedTrack } from './map.js?v=8';
 import { gpsTracker, GPSTracker } from './gps.js?v=11'; // app v41
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
-import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=8';
-import { RIVERS, getRiver } from './data/rivers.js?v=4';
+import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=8';import { RIVERS, getRiver } from './data/rivers.js?v=4';
 import { getSpotsByRiver, SPOT_TYPE_LABELS } from './data/spots.js?v=4';
 
 // ── App State ────────────────────────────────────
@@ -287,6 +286,7 @@ function switchView(viewId) {
 
   if (viewId === 'fahrt') {
     syncFahrtNames();
+    checkGpsPermission();
     if (state.currentRoute && !gpsTracker.tracking) {
     prefillTripFromRoute(state.currentRoute);
   }
@@ -654,6 +654,36 @@ function initFahrtView() {
   document.getElementById('btn-trip-toggle').addEventListener('click', toggleTrip);
   document.getElementById('btn-save-trip').addEventListener('click', saveCurrentTrip);
   document.getElementById('btn-reset-trip').addEventListener('click', resetTrip);
+  document.getElementById('btn-gps-retry')?.addEventListener('click', () => {
+    hideGpsPermBanner();
+    toggleTrip();
+  });
+  // Beim ersten Wechsel auf Fahrt-Tab: Berechtigung prüfen
+  checkGpsPermission();
+}
+
+/** Berechtigung prüfen (nur anzeigen, nicht anfordern) */
+async function checkGpsPermission() {
+  if (!('permissions' in navigator)) return;
+  try {
+    const result = await navigator.permissions.query({ name: 'geolocation' });
+    if (result.state === 'denied') showGpsPermBanner();
+    // Bei Änderung (z.B. Nutzer kehrt von Einstellungen zurück)
+    result.onchange = () => {
+      if (result.state === 'denied') showGpsPermBanner();
+      else hideGpsPermBanner();
+    };
+  } catch (_) { /* Browser unterstützt Permissions API nicht */ }
+}
+
+function showGpsPermBanner() {
+  document.getElementById('gps-permission-banner')?.removeAttribute('hidden');
+  document.getElementById('btn-trip-toggle').hidden = true;
+}
+
+function hideGpsPermBanner() {
+  document.getElementById('gps-permission-banner')?.setAttribute('hidden', '');
+  document.getElementById('btn-trip-toggle').hidden = false;
 }
 
 function prefillTripFromRoute(route) {
@@ -769,9 +799,11 @@ function startTrip() {
     );
     setGpsDebug(`Fehler code=${err?.code ?? '—'} | ${msg}`);
     if (isPermDenied) {
-      // GPS komplett gesperrt: UI zurücksetzen
+      // GPS komplett gesperrt: Banner anzeigen, UI zurücksetzen
+      showGpsPermBanner();
       document.getElementById('btn-trip-toggle').textContent = '▶ Starten';
       document.getElementById('btn-trip-toggle').classList.remove('active');
+      releaseWakeLock();
       syncFahrtNames();
     }
   };
