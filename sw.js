@@ -3,7 +3,7 @@
  * Cacht App Shell + OSM Kartenkacheln für Offline-Betrieb
  */
 
-const CACHE_NAME = 'kanuapp-v47';
+const CACHE_NAME = 'kanuapp-v48';
 const TILE_CACHE = 'kanuapp-tiles-v27';
 const MAX_TILES = 600; // ~30-60 MB
 

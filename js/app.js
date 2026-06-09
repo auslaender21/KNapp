@@ -854,6 +854,17 @@ function stopTrip() {
     updateTripProgressRoute();
   }
 
+  // Stats einfrieren BEVOR gpsTracker.stop() aufgerufen wird
+  // (danach wächst totalElapsed weiter)
+  const finalStats = gpsTracker.getStats();
+  const finalGeoJson = gpsTracker.getGeoJSON();
+  state._frozenTripStats = {
+    distanceKm: Math.round(finalStats.distance * 100) / 100,
+    durationMin: Math.round(finalStats.totalElapsed / 60000),
+    avgSpeedKmh: Math.round(finalStats.avgSpeed * 10) / 10,
+    track: finalGeoJson.geometry.coordinates.length >= 2 ? finalGeoJson : null
+  };
+
   gpsTracker.stop();
   clearTimeout(state.gpsWaitTimeout);
   clearInterval(state.timerInterval);
@@ -878,14 +889,14 @@ function updateTripDisplay(stats) {
 async function saveCurrentTrip() {
   if (!confirm('Möchtest du diese erfasste Fahrt speichern?')) return;
 
-  const stats = gpsTracker.getStats();
-  const geoJson = gpsTracker.getGeoJSON();
+  // Eingefrorene Stats verwenden (nicht getStats() – totalElapsed wäre falsch)
+  const frozen = state._frozenTripStats || {};
   const tripData = {
     ...(state.activeTrip || {}),
-    distanceKm: Math.round(stats.distance * 100) / 100,
-    durationMin: Math.round(stats.totalElapsed / 60000),
-    avgSpeedKmh: Math.round(stats.avgSpeed * 10) / 10,
-    track: geoJson.geometry.coordinates.length >= 2 ? geoJson : null,
+    distanceKm: frozen.distanceKm ?? 0,
+    durationMin: frozen.durationMin ?? 0,
+    avgSpeedKmh: frozen.avgSpeedKmh ?? 0,
+    track: frozen.track ?? null,
     isGpsTracked: true,
     weather: document.getElementById('quick-weather')?.value || '',
     waterLevel: document.getElementById('quick-water')?.value || '',
@@ -926,6 +937,7 @@ function resetTrip() {
   gpsTracker.reset();
   clearTimeout(state.gpsWaitTimeout);
   state.activeTrip = null;
+  state._frozenTripStats = null;
   clearTrack();
   clearSavedTrack();
   resetRoute();
@@ -1003,8 +1015,13 @@ function initBuchView() {
         return;
       }
       // Formular mit importierten Daten vorausfüllen
+      const hasTime = tripData.durationMin > 0;
       statusEl.className = 'gpx-import-status success';
-      statusEl.textContent = `✅ ${tripData.distanceKm.toFixed(1)} km, ${tripData.track.geometry.coordinates.length} Punkte geladen. Bitte ergänze Fluss und Bezeichnungen, dann speichern.`;
+      statusEl.textContent = `✅ ${tripData.distanceKm.toFixed(3)} km, ${tripData.track.geometry.coordinates.length} Punkte.${
+        hasTime
+          ? ` Dauer: ${tripData.durationMin} min, Ø ${tripData.avgSpeedKmh} km/h.`
+          : ' Keine Zeitstempel – Dauer bitte manuell eintragen.'
+      }`;
       // Zum manuellen Formular wechseln (vorausgefüllt)
       const manualTab = document.querySelector('.buch-tab[data-buch-tab="manual"]');
       manualTab?.click();
