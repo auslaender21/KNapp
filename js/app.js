@@ -714,21 +714,21 @@ function startTrip() {
       updateTripProgressRoute();
     }
 
+    // Track immer aktualisieren (auch während Auto-Pause, damit Linie sichtbar bleibt)
+    updateTrack(gpsTracker.track);
+
     if (!stats.isAutoPaused) {
       updateTripDisplay(stats);
       updatePosition(pos.lat, pos.lng, gpsTracker.currentPos?.accuracy ?? null, false);
-      updateTrack(gpsTracker.track);
 
       // Karte: während aktiver Fahrt Position zentrieren wenn Karte offen
       if (state.activeView === 'karte') {
         updatePosition(pos.lat, pos.lng, gpsTracker.currentPos?.accuracy ?? null, true);
       }
 
-      if (!stats.isAutoPaused) {
-        document.getElementById('gps-status').textContent = '📍 GPS aktiv';
-        document.getElementById('gps-status').className = 'gps-status active';
-        setTripProgressState('GPS aktiv, Position wird laufend aktualisiert.', 'active');
-      }
+      document.getElementById('gps-status').textContent = '📍 GPS aktiv';
+      document.getElementById('gps-status').className = 'gps-status active';
+      setTripProgressState('GPS aktiv, Position wird laufend aktualisiert.', 'active');
     } else {
       // Im Auto-Pause: Position trotzdem aktualisieren
       updatePosition(pos.lat, pos.lng, gpsTracker.currentPos?.accuracy ?? null, false);
@@ -817,6 +817,7 @@ function stopTrip() {
   setTripProgressState('Fahrt pausiert. Mit Weiterfahren erneut GPS suchen.', 'paused');
   setGpsDebug('Pausiert');
   document.getElementById('btn-save-trip').hidden = false;
+  document.getElementById('trip-quick-note').hidden = false;
 }
 
 function updateTripDisplay(stats) {
@@ -829,13 +830,17 @@ async function saveCurrentTrip() {
   if (!confirm('Möchtest du diese erfasste Fahrt speichern?')) return;
 
   const stats = gpsTracker.getStats();
+  const geoJson = gpsTracker.getGeoJSON();
   const tripData = {
     ...(state.activeTrip || {}),
     distanceKm: Math.round(stats.distance * 100) / 100,
-    durationMin: Math.round(stats.elapsed / 60000),
+    durationMin: Math.round(stats.totalElapsed / 60000),
     avgSpeedKmh: Math.round(stats.avgSpeed * 10) / 10,
-    track: gpsTracker.getGeoJSON(),
-    isGpsTracked: true
+    track: geoJson.geometry.coordinates.length >= 2 ? geoJson : null,
+    isGpsTracked: true,
+    weather: document.getElementById('quick-weather')?.value || '',
+    waterLevel: document.getElementById('quick-water')?.value || '',
+    notes: document.getElementById('quick-notes')?.value || ''
   };
 
   const saved = await saveTrip(tripData);
@@ -893,6 +898,17 @@ function resetTrip() {
   document.getElementById('trip-start-name').textContent = '—';
   document.getElementById('trip-end-name').textContent = '—';
   document.getElementById('trip-progress').hidden = true;
+  // Quick-Note zurücksetzen
+  const qn = document.getElementById('trip-quick-note');
+  if (qn) {
+    qn.hidden = true;
+    const qw = document.getElementById('quick-weather');
+    const qwl = document.getElementById('quick-water');
+    const qnotes = document.getElementById('quick-notes');
+    if (qw) qw.value = '';
+    if (qwl) qwl.value = '';
+    if (qnotes) qnotes.value = '';
+  }
   updateTripProgressRoute();
 }
 

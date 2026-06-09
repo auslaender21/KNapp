@@ -200,6 +200,7 @@ function showTripDetail(trip) {
   const distStr = trip.distanceKm ? `${trip.distanceKm.toFixed(1)} km` : '—';
   const durStr = trip.durationMin ? formatDuration(trip.durationMin) : '—';
   const speedStr = trip.avgSpeedKmh ? `${trip.avgSpeedKmh.toFixed(1)} km/h` : '—';
+  const hasRealTrack = !!(trip.track?.geometry?.coordinates?.length >= 2);
 
   content.innerHTML = `
     <div class="detail-header">
@@ -256,12 +257,15 @@ function showTripDetail(trip) {
     ${trip.notes ? `
       <div class="detail-notes"><span class="detail-lbl">📝 Notizen</span><p>${trip.notes}</p></div>
     ` : ''}
+    ${!trip.weather && !trip.waterLevel && trip.isGpsTracked ? `
+      <div class="detail-row detail-hint"><span class="detail-lbl">💡 Wetter/Pegel</span><span>Über ✏️ Bearbeiten ergänzen</span></div>
+    ` : ''}
 
     <div class="detail-actions">
-      <button id="btn-show-on-map" class="btn-secondary" ${trip.track ? '' : 'hidden'}>🗺️ Auf Karte</button>
+      <button id="btn-show-on-map" class="btn-secondary" ${hasRealTrack ? '' : 'hidden'}>🗺️ Auf Karte</button>
       <button id="btn-edit-trip" class="btn-secondary">✏️ Bearbeiten</button>
+      <button id="btn-export-gpx" class="btn-secondary" ${hasRealTrack ? '' : 'hidden'}>📤 GPX</button>
       <button id="btn-delete-trip" class="btn-danger" data-id="${trip.id}">🗑️ Löschen</button>
-      ${trip.track ? `<button id="btn-export-gpx" class="btn-secondary">📤 GPX</button>` : ''}
     </div>
   `;
 

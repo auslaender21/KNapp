@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
   <!-- App CSS -->
-  <link rel="stylesheet" href="./css/app.css?v=13">
+  <link rel="stylesheet" href="./css/app.css?v=14">
 </head>
 <body>
 
@@ -34,7 +34,7 @@
           <h1>KanuApp</h1>
           <div id="header-gps-debug">DEBUG: bereit</div>
         </div>
-        <div class="header-subtitle">DE · NL · BE · <span id="app-version">v41</span></div>
+        <div class="header-subtitle">DE · NL · BE · <span id="app-version">v42</span></div>
       </div>
     </div>
     <div class="header-actions">
@@ -225,6 +225,38 @@
         <button id="btn-reset-trip" class="btn-secondary">↺ Zurücksetzen</button>
       </div>
 
+      <!-- Wetter, Pegel, Notizen nach Stoppen (optional) -->
+      <div id="trip-quick-note" class="trip-quick-note" hidden>
+        <div class="trip-quick-note-label">🗒️ Zur Fahrt notieren (optional)</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="quick-weather">Wetter</label>
+            <select id="quick-weather">
+              <option value="">—</option>
+              <option value="☀️ Sonnig">☀️ Sonnig</option>
+              <option value="⛅ Bewölkt">⛅ Bewölkt</option>
+              <option value="🌧️ Regen">🌧️ Regen</option>
+              <option value="💨 Windig">💨 Windig</option>
+              <option value="⛈️ Gewitter">⛈️ Gewitter</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="quick-water">Pegelstand</label>
+            <select id="quick-water">
+              <option value="">—</option>
+              <option value="Niedrig">Niedrig</option>
+              <option value="Normal">Normal</option>
+              <option value="Hoch">Hoch</option>
+              <option value="Hochwasser ⚠️">Hochwasser ⚠️</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="quick-notes">Notizen</label>
+          <textarea id="quick-notes" rows="2" placeholder="Besonderheiten, Erlebnisse..."></textarea>
+        </div>
+      </div>
+
     </section><!-- /view-fahrt -->
 
 
@@ -310,7 +342,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
 <!-- ── App JS (ES Modules) ────────────────────────── -->
-<script type="module" src="./js/app.js?v=39"></script>
+<script type="module" src="./js/app.js?v=40"></script>
 
 </body>
 </html>
