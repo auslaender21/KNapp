@@ -8,7 +8,7 @@ import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
          showSavedTrack, clearSavedTrack } from './map.js?v=8';
 import { gpsTracker, GPSTracker } from './gps.js?v=11'; // app v41
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
-import { renderLogbook, saveTrip, renderTripForm, closeModal } from './logbook.js?v=8';import { RIVERS, getRiver } from './data/rivers.js?v=4';
+import { renderLogbook, saveTrip, renderTripForm, closeModal, importGPX } from './logbook.js?v=9';import { RIVERS, getRiver } from './data/rivers.js?v=4';
 import { getSpotsByRiver, SPOT_TYPE_LABELS } from './data/spots.js?v=4';
 
 // ── App State ────────────────────────────────────
@@ -417,9 +417,7 @@ function initKarteView() {
       document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.selectedSpeed = btn.dataset.speed;
-      const startKm = parseKmInput('km-start');
-      const endKm = parseKmInput('km-end');
-      if ((state.startSpot && state.endSpot) || (startKm !== null && endKm !== null && state.selectedRiver)) updateRoute();
+      updateRoute(); // immer neu berechnen, egal welche Eingabemethode
     });
   });
 
@@ -965,7 +963,7 @@ function resetTrip() {
 
 // ── Fahrtenbuch ──────────────────────────────────
 function initBuchView() {
-  // Tab: Liste / Neue Fahrt
+  // Tab: Liste / Neue Fahrt / GPX Import
   document.querySelectorAll('.buch-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.buch-tab').forEach(t => t.classList.remove('active'));
@@ -985,6 +983,40 @@ function initBuchView() {
           document.querySelector('.buch-tab[data-buch-tab="liste"]').click();
         });
       }
+    });
+  });
+
+  // GPX Datei-Import
+  document.getElementById('gpx-file-input')?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const statusEl = document.getElementById('gpx-import-status');
+    statusEl.hidden = false;
+    statusEl.className = 'gpx-import-status searching';
+    statusEl.textContent = '⏳ GPX-Datei wird gelesen...';
+
+    importGPX(file, async (tripData, err) => {
+      e.target.value = ''; // Reset file input
+      if (err) {
+        statusEl.className = 'gpx-import-status error';
+        statusEl.textContent = `❌ ${err}`;
+        return;
+      }
+      // Formular mit importierten Daten vorausfüllen
+      statusEl.className = 'gpx-import-status success';
+      statusEl.textContent = `✅ ${tripData.distanceKm.toFixed(1)} km, ${tripData.track.geometry.coordinates.length} Punkte geladen. Bitte ergänze Fluss und Bezeichnungen, dann speichern.`;
+      // Zum manuellen Formular wechseln (vorausgefüllt)
+      const manualTab = document.querySelector('.buch-tab[data-buch-tab="manual"]');
+      manualTab?.click();
+      await new Promise(r => setTimeout(r, 50)); // warten bis Formular gerendert
+      renderTripForm(document.getElementById('manual-form-container'), tripData, async (saved) => {
+        alert(`✅ GPX-Fahrt gespeichert!\n${saved.distanceKm.toFixed(1)} km`);
+        const logContainer = document.getElementById('logbook-list');
+        if (logContainer) await renderLogbook(logContainer);
+        document.querySelector('.buch-tab[data-buch-tab="liste"]').click();
+      }, () => {
+        document.querySelector('.buch-tab[data-buch-tab="liste"]').click();
+      });
     });
   });
 }

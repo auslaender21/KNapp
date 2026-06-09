@@ -1042,6 +1042,30 @@ textarea { resize: vertical; }
   max-width: 520px;
 }
 
+/* GPX Import Panel */
+.gpx-import-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 16px;
+  text-align: center;
+}
+.gpx-import-icon { font-size: 48px; }
+.gpx-import-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.gpx-import-hint { font-size: 13px; color: var(--text-muted); line-height: 1.6; max-width: 300px; }
+.gpx-import-status {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+.gpx-import-status.searching { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.4); color: var(--warning); }
+.gpx-import-status.success   { background: rgba(34,197,94,0.08);  border: 1px solid rgba(34,197,94,0.4);  color: var(--success); }
+.gpx-import-status.error     { background: rgba(239,68,68,0.08);  border: 1px solid rgba(239,68,68,0.4);  color: var(--danger); }
+
 /* Manual Entry Form */
 .trip-form { display: flex; flex-direction: column; gap: 12px; }
 .form-group { display: flex; flex-direction: column; gap: 4px; }

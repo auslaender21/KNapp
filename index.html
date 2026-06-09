@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
   <!-- App CSS -->
-  <link rel="stylesheet" href="./css/app.css?v=15">
+  <link rel="stylesheet" href="./css/app.css?v=16">
 </head>
 <body>
 
@@ -34,7 +34,7 @@
           <h1>KanuApp</h1>
           <div id="header-gps-debug">DEBUG: bereit</div>
         </div>
-        <div class="header-subtitle">DE · NL · BE · <span id="app-version">v44</span></div>
+        <div class="header-subtitle">DE · NL · BE · <span id="app-version">v45</span></div>
       </div>
     </div>
     <div class="header-actions">
@@ -287,6 +287,9 @@
         <button class="buch-tab" data-buch-tab="manual">
           ✏️ Manuell erfassen
         </button>
+        <button class="buch-tab" data-buch-tab="gpx">
+          📥 GPX Import
+        </button>
       </div>
 
       <div class="buch-panels">
@@ -314,6 +317,20 @@
         <div id="buch-manual" class="buch-panel">
           <div id="manual-form-container">
             <!-- Wird per JS befüllt -->
+          </div>
+        </div>
+
+        <!-- Panel: GPX Import -->
+        <div id="buch-gpx" class="buch-panel">
+          <div class="gpx-import-area">
+            <div class="gpx-import-icon">📥</div>
+            <div class="gpx-import-title">GPX-Datei importieren</div>
+            <p class="gpx-import-hint">Wähle eine GPX-Datei von deinem Gerät aus. Track, Distanz und Dauer werden automatisch ausgelesen und ein neuer Fahrteneintrag erstellt.</p>
+            <label id="btn-gpx-import" class="btn-primary btn-full" style="cursor:pointer;">
+              📂 Datei auswählen
+              <input type="file" id="gpx-file-input" accept=".gpx,application/gpx+xml" style="display:none;">
+            </label>
+            <div id="gpx-import-status" class="gpx-import-status" hidden></div>
           </div>
         </div>
 
@@ -358,7 +375,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
 <!-- ── App JS (ES Modules) ────────────────────────── -->
-<script type="module" src="./js/app.js?v=42"></script>
+<script type="module" src="./js/app.js?v=43"></script>
 
 </body>
 </html>

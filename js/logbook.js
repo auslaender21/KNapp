@@ -365,6 +365,93 @@ ${trkpts}
   URL.revokeObjectURL(url);
 }
 
+/** GPX-Datei importieren → Trip-Daten extrahieren */
+export function importGPX(file, onResult) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(e.target.result, 'application/xml');
+
+      if (xml.querySelector('parsererror')) {
+        onResult(null, 'Ungültige GPX-Datei.');
+        return;
+      }
+
+      // Koordinaten aus trkpt-Elementen auslesen
+      const trkpts = Array.from(xml.querySelectorAll('trkpt'));
+      if (trkpts.length < 2) {
+        onResult(null, 'GPX-Datei enthält zu wenige Trackpunkte (min. 2).');
+        return;
+      }
+
+      const coords = trkpts.map(pt => {
+        const lat = parseFloat(pt.getAttribute('lat'));
+        const lng = parseFloat(pt.getAttribute('lon'));
+        return [lng, lat];
+      }).filter(([lng, lat]) => Number.isFinite(lat) && Number.isFinite(lng));
+
+      if (coords.length < 2) {
+        onResult(null, 'Keine gültigen GPS-Koordinaten in der Datei gefunden.');
+        return;
+      }
+
+      // Distanz aus Haversine berechnen
+      function haversineDist(a, b) {
+        const R = 6371;
+        const dLat = (b[1] - a[1]) * Math.PI / 180;
+        const dLng = (b[0] - a[0]) * Math.PI / 180;
+        const s = Math.sin(dLat/2)**2 + Math.cos(a[1]*Math.PI/180)*Math.cos(b[1]*Math.PI/180)*Math.sin(dLng/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+      }
+      let totalKm = 0;
+      for (let i = 1; i < coords.length; i++) totalKm += haversineDist(coords[i-1], coords[i]);
+
+      // Zeitstempel lesen (optional)
+      const times = Array.from(xml.querySelectorAll('trkpt time')).map(t => new Date(t.textContent));
+      const validTimes = times.filter(t => !isNaN(t.getTime()));
+      let durationMin = 0;
+      let dateStr = new Date().toISOString().split('T')[0];
+      if (validTimes.length >= 2) {
+        durationMin = Math.round((validTimes[validTimes.length-1] - validTimes[0]) / 60000);
+        dateStr = validTimes[0].toISOString().split('T')[0];
+      }
+
+      // Name aus GPX lesen (optional)
+      const gpxName = xml.querySelector('trk > name')?.textContent?.trim() || '';
+
+      // Start-/Endkoordinate als Text
+      const startCoord = `${coords[0][1].toFixed(6)}, ${coords[0][0].toFixed(6)}`;
+      const endCoord   = `${coords[coords.length-1][1].toFixed(6)}, ${coords[coords.length-1][0].toFixed(6)}`;
+
+      const track = {
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: coords },
+        properties: { source: 'gpx-import', pointCount: coords.length }
+      };
+
+      onResult({
+        date: dateStr,
+        startCoords: startCoord,
+        endCoords: endCoord,
+        startSpotName: gpxName ? `Start (${gpxName})` : `Start`,
+        endSpotName: gpxName ? `Ziel (${gpxName})` : `Ziel`,
+        distanceKm: Math.round(totalKm * 100) / 100,
+        durationMin,
+        avgSpeedKmh: durationMin > 0 ? Math.round((totalKm / (durationMin / 60)) * 10) / 10 : 0,
+        track,
+        isGpsTracked: false,
+        notes: gpxName ? `Importiert aus GPX: ${gpxName}` : 'Importiert aus GPX'
+      }, null);
+    } catch (err) {
+      onResult(null, `Fehler beim Lesen der GPX-Datei: ${err.message}`);
+    }
+  };
+  reader.onerror = () => onResult(null, 'Datei konnte nicht gelesen werden.');
+  reader.readAsText(file);
+}
+
 /** Datum formatieren */
 function formatDate(dateStr) {
   if (!dateStr) return '—';
