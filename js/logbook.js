@@ -146,9 +146,9 @@ function createTripCard(trip) {
   card.dataset.tripId = trip.id;
 
   const dateStr = formatDate(trip.date);
-  const distStr = trip.distanceKm ? `${trip.distanceKm.toFixed(1)} km` : '—';
-  const durStr = trip.durationMin ? formatDuration(trip.durationMin) : '—';
-  const speedStr = trip.avgSpeedKmh ? `${trip.avgSpeedKmh.toFixed(1)} km/h` : '—';
+  const distStr = trip.distanceKm > 0 ? `${trip.distanceKm.toFixed(2)} km` : '—';
+  const durStr = trip.durationMin > 0 ? formatDuration(trip.durationMin) : '—';
+  const speedStr = trip.avgSpeedKmh > 0 ? `${trip.avgSpeedKmh.toFixed(1)} km/h` : '—';
 
   card.innerHTML = `
     <div class="trip-card-header">
@@ -197,9 +197,9 @@ function showTripDetail(trip) {
   const content = document.getElementById('trip-detail-content');
 
   const dateStr = formatDate(trip.date);
-  const distStr = trip.distanceKm ? `${trip.distanceKm.toFixed(1)} km` : '—';
-  const durStr = trip.durationMin ? formatDuration(trip.durationMin) : '—';
-  const speedStr = trip.avgSpeedKmh ? `${trip.avgSpeedKmh.toFixed(1)} km/h` : '—';
+  const distStr = trip.distanceKm > 0 ? `${trip.distanceKm.toFixed(2)} km` : '—';
+  const durStr = trip.durationMin > 0 ? formatDuration(trip.durationMin) : '—';
+  const speedStr = trip.avgSpeedKmh > 0 ? `${trip.avgSpeedKmh.toFixed(1)} km/h` : '—';
   const hasRealTrack = !!(trip.track?.geometry?.coordinates?.length >= 2);
 
   content.innerHTML = `
@@ -526,7 +526,7 @@ export function renderTripForm(container, prefill = {}, onSave, onCancel) {
         <div class="form-row">
           <div class="form-group">
             <label for="tf-dist">Distanz (km)</label>
-            <input type="number" id="tf-dist" step="0.01" min="0" placeholder="0.00" value="${prefill.distanceKm != null ? prefill.distanceKm : ''}">
+            <input type="number" id="tf-dist" step="any" min="0" placeholder="0.000" value="${prefill.distanceKm != null ? prefill.distanceKm : ''}">
           </div>
           <div class="form-group">
             <label for="tf-dur">Dauer (min)</label>
@@ -611,7 +611,9 @@ export function renderTripForm(container, prefill = {}, onSave, onCancel) {
         endCoords,
         distanceKm: distKm,
         durationMin: durMin,
-        avgSpeedKmh: (durMin > 0 && distKm > 0) ? Math.round((distKm / (durMin / 60)) * 10) / 10 : 0,
+        avgSpeedKmh: (durMin > 0 && distKm > 0)
+          ? Math.round((distKm / (durMin / 60)) * 10) / 10
+          : (prefill.avgSpeedKmh ?? 0),
         weather: document.getElementById('tf-weather').value,
         waterLevel: document.getElementById('tf-water').value,
         notes: document.getElementById('tf-notes').value,

@@ -8,7 +8,7 @@ import { initMap, showAllSpots, showRiverSpots, showRoute, clearRoute,
          showSavedTrack, clearSavedTrack } from './map.js?v=8';
 import { gpsTracker, GPSTracker } from './gps.js?v=11'; // app v41
 import { planRoute, planRouteFromKilometers, SPEED_PRESETS, formatDuration } from './route.js?v=4';
-import { renderLogbook, saveTrip, renderTripForm, closeModal, importGPX } from './logbook.js?v=10';import { RIVERS, getRiver } from './data/rivers.js?v=4';
+import { renderLogbook, saveTrip, renderTripForm, closeModal, importGPX } from './logbook.js?v=11';import { RIVERS, getRiver } from './data/rivers.js?v=4';
 import { getSpotsByRiver, SPOT_TYPE_LABELS } from './data/spots.js?v=4';
 
 // ── App State ────────────────────────────────────
