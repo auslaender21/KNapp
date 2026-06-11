@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 
   <!-- App CSS -->
-  <link rel="stylesheet" href="./css/app.css?v=16">
+  <link rel="stylesheet" href="./css/app.css?v=17">
 </head>
 <body>
 
@@ -34,7 +34,7 @@
           <h1>KanuApp</h1>
           <div id="header-gps-debug">DEBUG: bereit</div>
         </div>
-        <div class="header-subtitle">DE · NL · BE · <span id="app-version">v48</span></div>
+        <div class="header-subtitle">DE · NL · BE · <span id="app-version">v49</span></div>
       </div>
     </div>
     <div class="header-actions">
@@ -239,6 +239,15 @@
         <button id="btn-trip-toggle" class="btn-primary">▶ Starten</button>
         <button id="btn-save-trip" class="btn-secondary" hidden>💾 Fahrt speichern</button>
         <button id="btn-reset-trip" class="btn-secondary">↺ Zurücksetzen</button>
+      </div>
+
+      <!-- Akkuoptionen -->
+      <div class="trip-power-row">
+        <label class="power-toggle-label" for="toggle-wakelock">
+          <span>🔆 Bildschirm wach halten</span>
+          <span class="power-toggle-hint">Mehr Akkuverbrauch – für kurze Touren oder bei Befestigung am Kajak</span>
+        </label>
+        <input type="checkbox" id="toggle-wakelock" class="power-toggle-checkbox">
       </div>
 
       <!-- Wetter, Pegel, Notizen nach Stoppen (optional) -->

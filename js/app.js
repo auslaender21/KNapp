@@ -26,8 +26,12 @@ const state = {
 };
 // ── Screen Wake Lock (verhindert Bildschirm-Aus während Fahrt) ───────
 let _wakeLock = null;
+function isWakeLockEnabled() {
+  return document.getElementById('toggle-wakelock')?.checked === true;
+}
 async function acquireWakeLock() {
   if (!('wakeLock' in navigator)) return;
+  if (!isWakeLockEnabled()) return;
   try {
     _wakeLock = await navigator.wakeLock.request('screen');
     _wakeLock.addEventListener('release', () => { _wakeLock = null; });
@@ -36,9 +40,16 @@ async function acquireWakeLock() {
 function releaseWakeLock() {
   if (_wakeLock) { _wakeLock.release(); _wakeLock = null; }
 }
-// Wake Lock nach Bildschirm-Ein (z.B. Benachrichtigung) wiederherstellen
+// Wake Lock nach Bildschirm-Ein wiederherstellen (nur wenn Checkbox aktiv)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && gpsTracker.tracking) acquireWakeLock();
+  if (document.visibilityState === 'visible' && gpsTracker.tracking && isWakeLockEnabled()) acquireWakeLock();
+});
+// Checkbox direkt anschalten/abschalten während Fahrt
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('toggle-wakelock')?.addEventListener('change', (e) => {
+    if (e.target.checked && gpsTracker.tracking) acquireWakeLock();
+    else releaseWakeLock();
+  });
 });
 function ensureStylesheet(href) {
   const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
@@ -819,8 +830,8 @@ function startTrip() {
   // Fahrt beginnt auf Karte
   if (state.activeView !== 'karte') switchView('karte');
 
-  // Bildschirm während Fahrt wach halten
-  acquireWakeLock();
+  // Bildschirm wach halten – nur wenn Nutzer es aktiviert hat
+  if (isWakeLockEnabled()) acquireWakeLock();
 
   state.gpsWaitTimeout = setTimeout(() => {
     const hasFix = !!gpsTracker.getStats().currentPos;
